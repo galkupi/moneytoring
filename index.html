@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0b8f7f" />
+<title>MoneyToring</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#eef1f5; --card:#ffffff; --card2:#f6f8fa; --line:#e6e9ef;
+    --text:#141a21; --muted:#727f8c; --faint:#9aa5b1;
+    --brand:#0e9f6e; --brand2:#0b8f7f; --brand-ink:#064a3a;
+    --ok:#0e9f6e; --warn:#e0930b; --over:#e5484d; --accent:#5b8def;
+    --radius:18px; --sh:0 2px 10px rgba(18,38,63,.06); --sh2:0 8px 26px rgba(18,38,63,.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);color:var(--text);
+    font-family:'Rubik',system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    font-size:15.5px;line-height:1.45;overscroll-behavior:none;-webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:500px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding-bottom:84px}
+  b,strong{font-weight:700}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* ---------- Header / hero ---------- */
+  header{
+    background:linear-gradient(155deg,#12b083 0%,#0b8f7f 60%,#0a7d78 100%);
+    color:#fff;padding:16px 18px 26px;border-radius:0 0 26px 26px;box-shadow:var(--sh2);position:relative;
+  }
+  .toprow{display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:18px}
+  .brand .logo{width:30px;height:30px;border-radius:9px;background:#ffffff26;display:grid;place-items:center;font-size:17px}
+  .langbtn{background:#ffffff26;border:1px solid #ffffff33;color:#fff;border-radius:999px;padding:6px 13px;font-size:13px;font-weight:600;cursor:pointer}
+  .month-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:14px}
+  .month-nav button{background:#ffffff22;border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:18px;cursor:pointer;display:grid;place-items:center;line-height:1}
+  .month-nav .mlabel{font-weight:600;min-width:130px;text-align:center;font-size:15px}
+  .hero{margin-top:16px;text-align:center}
+  .hero .htitle{font-size:13.5px;opacity:.9;font-weight:500}
+  .hero .hbig{font-size:38px;font-weight:800;letter-spacing:.5px;margin:2px 0 2px}
+  .hero .hsub{font-size:13px;opacity:.92;margin-bottom:12px}
+  .hero .bar{height:10px;border-radius:99px;background:#ffffff2e;overflow:hidden;box-shadow:inset 0 1px 2px #0002}
+  .hero .bar>span{display:block;height:100%;background:#fff;border-radius:99px;transition:width .45s}
+  /* Stat strip */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:-16px 14px 0;position:relative;z-index:5}
+  .stat{background:var(--card);border-radius:14px;padding:11px 8px;text-align:center;box-shadow:var(--sh)}
+  .stat .sl{font-size:11px;color:var(--muted);font-weight:500}
+  .stat .sv{font-size:16px;font-weight:700;margin-top:2px}
+  .stat .sv.green{color:var(--brand)}
+
+  /* ---------- Content ---------- */
+  main{flex:1;padding:18px 14px 20px}
+  .section-title{font-size:12.5px;color:var(--muted);font-weight:600;margin:2px 4px 10px;letter-spacing:.4px;display:flex;justify-content:space-between;align-items:center}
+  .card{background:var(--card);border-radius:var(--radius);padding:6px 16px;margin-bottom:14px;box-shadow:var(--sh)}
+  .card.pad{padding:16px}
+
+  /* Category row (variable, with bar) */
+  .catrow{display:flex;flex-direction:column;gap:9px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .catrow:last-child{border-bottom:none}
+  .catrow .top{display:flex;align-items:center;gap:11px}
+  .emoji{font-size:19px;width:38px;height:38px;border-radius:11px;background:var(--card2);display:grid;place-items:center;flex:none}
+  .catrow .name{font-weight:600;flex:1;min-width:0}
+  .catrow .name small{display:block;color:var(--muted);font-weight:400;font-size:11.5px;margin-top:1px}
+  .catrow .amt{text-align:end}
+  .catrow .amt b{font-weight:700;font-size:15px}
+  .catrow .amt small{color:var(--faint);display:block;font-size:11.5px}
+  .pbar{height:8px;border-radius:99px;background:var(--card2);overflow:hidden}
+  .pbar>span{display:block;height:100%;border-radius:99px;transition:width .45s}
+
+  /* Fixed row (no bar) */
+  .fixrow{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .fixrow:last-child{border-bottom:none}
+  .fixrow .name{flex:1;font-weight:500}
+  .fixrow .val{font-weight:700}
+  .tag{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;flex:none}
+  .tag.fixed{background:#5b8def1a;color:#3f6fd0}
+  .tag.var{background:#0e9f6e1a;color:#0b8f6a}
+
+  /* Buttons / inputs */
+  button{font-family:inherit}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:13px;
+    padding:13px 16px;font-size:15px;font-weight:600;cursor:pointer;background:var(--brand);color:#fff;width:100%;box-shadow:0 3px 10px #0e9f6e40}
+  .btn.ghost{background:var(--card);color:var(--text);border:1px solid var(--line);box-shadow:var(--sh)}
+  .btn.danger{background:#fff;color:#e5484d;border:1px solid #e5484d40;box-shadow:none}
+  input,select{width:100%;background:var(--card2);border:1px solid var(--line);color:var(--text);
+    border-radius:12px;padding:12px 13px;font-size:16px;font-family:inherit;outline:none}
+  input:focus,select:focus{border-color:var(--brand);background:#fff}
+  label{font-size:12px;color:var(--muted);font-weight:600;display:block;margin:0 2px 6px}
+  .field{margin-bottom:13px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .iconbtn{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:26px;cursor:pointer;line-height:1}
+
+  /* Quick lanes */
+  .lanes{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .lane{background:var(--card);border-radius:var(--radius);padding:15px 12px;cursor:pointer;text-align:center;box-shadow:var(--sh);border:1px solid transparent;transition:.15s}
+  .lane:active{transform:scale(.97);border-color:var(--brand)}
+  .lane .li{font-size:28px}
+  .lane .ln{font-weight:700;margin-top:6px;font-size:14.5px}
+  .lane .lv{color:var(--muted);font-size:12px;margin-top:3px}
+  .lane .lbar{height:6px;border-radius:99px;background:var(--card2);overflow:hidden;margin-top:9px}
+  .lane .lbar>span{display:block;height:100%;border-radius:99px}
+
+  /* Expense list */
+  .exp{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .exp:last-child{border-bottom:none}
+  .exp .meta{flex:1;min-width:0}
+  .exp .meta b{font-weight:600;font-size:14.5px}
+  .exp .meta small{display:block;color:var(--muted);font-size:12px}
+  .exp .val{font-weight:700}
+  .exp .del{background:none;border:none;color:var(--faint);font-size:17px;cursor:pointer;padding:6px}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px;font-size:14px}
+  .empty .big{font-size:38px;margin-bottom:10px}
+
+  /* Alerts */
+  .alert{display:flex;gap:10px;align-items:center;padding:12px 13px;border-radius:13px;margin-bottom:10px;font-size:13.5px;box-shadow:var(--sh)}
+  .alert.warn{background:#fff7e6;border:1px solid #f0c66b}
+  .alert.over{background:#fdecec;border:1px solid #f2b4b6}
+  .alert .ico{font-size:18px;flex:none}
+
+  /* Bottom nav */
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:30;background:#fff;border-top:1px solid var(--line);
+    display:flex;max-width:500px;margin:0 auto;padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -3px 16px rgba(18,38,63,.06)}
+  nav button{flex:1;background:none;border:none;color:var(--faint);padding:5px 2px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;font-size:10.5px;font-weight:600;cursor:pointer;border-radius:12px}
+  nav button.active{color:var(--brand)}
+  nav button .ni{font-size:21px}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:#1a2530aa;z-index:50;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--card);width:100%;max-width:500px;border-radius:24px 24px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 40px #0004;animation:up .24s ease;max-height:92vh;overflow:auto}
+  .modal .grip{width:40px;height:4px;border-radius:99px;background:var(--line);margin:6px auto 14px}
+  @keyframes up{from{transform:translateY(40px)}to{transform:translateY(0)}}
+  .modal h3{margin:2px 0 15px;font-size:18px}
+  .modal .mrow{display:flex;gap:10px;margin-top:8px}
+  .chipwrap{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chip{padding:9px 12px;border-radius:12px;background:var(--card2);border:1px solid var(--line);cursor:pointer;font-size:13.5px;display:flex;align-items:center;gap:6px}
+  .chip.sel{border-color:var(--brand);background:#0e9f6e14;color:var(--brand2);font-weight:600}
+
+  /* Emoji picker */
+  .emojisearch{margin-bottom:10px}
+  .emojigrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-height:46vh;overflow:auto}
+  .emojigrid button{background:var(--card2);border:1px solid transparent;border-radius:10px;font-size:22px;padding:8px 0;cursor:pointer;line-height:1}
+  .emojigrid button:active{border-color:var(--brand);background:#0e9f6e14}
+
+  /* Toggle switch + settings rows */
+  .switch{position:relative;display:inline-block;width:44px;height:26px;flex:none}
+  .switch input{opacity:0;width:0;height:0}
+  .slider{position:absolute;inset:0;background:var(--line);border-radius:99px;transition:.2s;cursor:pointer}
+  .slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px #0003}
+  .switch input:checked + .slider{background:var(--brand)}
+  .switch input:checked + .slider:before{transform:translateX(18px)}
+  html[dir=rtl] .slider:before{left:auto;right:3px}
+  html[dir=rtl] .switch input:checked + .slider:before{transform:translateX(-18px)}
+  .setrow{padding:13px 0;border-bottom:1px solid var(--line)}
+  .setrow:last-child{border-bottom:none}
+  .setmain{display:flex;align-items:center;gap:11px}
+  .seticon{font-size:17px;width:34px;height:34px;border-radius:10px;background:var(--card2);display:grid;place-items:center;flex:none}
+  .settext{flex:1;min-width:0}
+  .settext b{font-size:14.5px;font-weight:600}
+  .settext small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
+  .setparam{margin-top:10px;padding-inline-start:45px}
+  .setparam .row{display:flex;align-items:center;gap:8px}
+  .setparam input,.setparam select{max-width:160px}
+  .setparam .unit{color:var(--muted);font-size:13px}
+  .hide{display:none!important}
+  .rtl-flip{unicode-bidi:plaintext}
+  .pill{display:inline-flex;gap:6px;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:12.5px;color:var(--brand2);cursor:pointer;font-weight:600}
+  .savings-card{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(120deg,#0e9f6e12,#5b8def12);border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="toprow">
+      <div class="brand"><span class="logo">💰</span><span>MoneyToring</span></div>
+      <button class="langbtn" id="langBtn">EN</button>
+    </div>
+    <div class="month-nav">
+      <button id="prevM">‹</button>
+      <div class="mlabel" id="mLabel">—</div>
+      <button id="nextM">›</button>
+    </div>
+    <div class="hero">
+      <div class="htitle" id="heroTitle">Variable spending</div>
+      <div class="hbig num" id="heroBig">₪0</div>
+      <div class="hsub" id="heroSub">of ₪0 planned</div>
+      <div class="bar"><span id="heroBar" style="width:0%"></span></div>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="sl" id="sIncomeL">Income</div><div class="sv num" id="sIncome">₪0</div></div>
+    <div class="stat"><div class="sl" id="sFixedL">Committed</div><div class="sv num" id="sFixed">₪0</div></div>
+    <div class="stat"><div class="sl" id="sSaveL">Planned savings</div><div class="sv num green" id="sSave">₪0</div></div>
+  </div>
+
+  <main>
+    <!-- ===== DASHBOARD ===== -->
+    <section id="view-dash">
+      <div id="alertsWrap"></div>
+      <div class="section-title"><span id="tVarSec">Variable — actual vs planned</span></div>
+      <div class="card" id="varCards"></div>
+      <div class="section-title"><span id="tFixSec">Fixed (committed)</span><span class="rtl-flip" id="tFixNote" style="font-weight:400;color:var(--faint)"></span></div>
+      <div class="card" id="fixCards"></div>
+    </section>
+
+    <!-- ===== TRACK ===== -->
+    <section id="view-track" class="hide">
+      <div class="section-title"><span id="tQuick">Quick add</span></div>
+      <div class="lanes" id="lanes"></div>
+      <button class="btn ghost" id="addOther" style="margin-bottom:16px">➕ <span id="tAddOther">Add to another category</span></button>
+      <div class="section-title"><span id="tRecent">This month</span></div>
+      <div class="card" id="expList"></div>
+    </section>
+
+    <!-- ===== PLAN ===== -->
+    <section id="view-plan" class="hide">
+      <div class="section-title"><span id="tIncomeSec">Monthly income</span></div>
+      <div class="card pad">
+        <div class="field" style="margin:0">
+          <label id="tIncomeLbl">Expected income this month</label>
+          <input type="number" inputmode="numeric" id="incomeInput" placeholder="0" />
+        </div>
+      </div>
+
+      <div class="section-title"><span id="tVarPlanSec">Variable expenses</span><button class="pill" data-add="variable">＋ <span class="tAddCat">Add</span></button></div>
+      <div class="card" id="planVar"></div>
+
+      <div class="section-title"><span id="tFixPlanSec">Fixed expenses</span><button class="pill" data-add="fixed">＋ <span class="tAddCat">Add</span></button></div>
+      <div class="card" id="planFix"></div>
+
+      <div class="card pad savings-card">
+        <b id="tSavings">Planned savings</b>
+        <b id="savingsVal" class="num" style="font-size:19px;color:var(--brand)">₪0</b>
+      </div>
+      <div class="grid2">
+        <button class="btn ghost" id="exportBtn">⬇ <span id="tExport">Export</span></button>
+        <button class="btn ghost" id="importBtn">⬆ <span id="tImport">Import</span></button>
+      </div>
+      <input type="file" id="importFile" accept="application/json" class="hide" />
+    </section>
+
+    <!-- ===== MORE ===== -->
+    <section id="view-more" class="hide">
+      <div class="section-title"><span id="tSettings">Notifications</span></div>
+      <div class="card pad">
+        <button class="btn ghost" id="notifBtn">🔔 <span id="tEnableNotif">Enable notifications</span></button>
+        <div id="notifPermNote" style="font-size:11.5px;color:var(--muted);margin-top:9px;text-align:center"></div>
+      </div>
+      <div class="section-title"><span id="tNActiveNow">Active now</span></div>
+      <div class="card" id="notifNow"></div>
+      <div class="section-title"><span id="tNOnPhone">On the phone (coming)</span></div>
+      <div class="card" id="notifPhone"></div>
+      <div class="section-title"><span id="tRoadmap">Coming next (Android)</span></div>
+      <div class="card pad" style="font-size:13.5px;color:var(--muted);line-height:1.7" id="roadmapBox"></div>
+      <button class="btn danger" id="resetBtn">🗑 <span id="tReset">Reset all data</span></button>
+      <div style="text-align:center;color:var(--faint);font-size:11.5px;margin-top:16px">MoneyToring · demo v0.2</div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-view="dash" class="active"><span class="ni">📊</span><span id="nDash">Dashboard</span></button>
+    <button data-view="track"><span class="ni">✏️</span><span id="nTrack">Track</span></button>
+    <button data-view="plan"><span class="ni">🗓️</span><span id="nPlan">Plan</span></button>
+    <button data-view="more"><span class="ni">⚙️</span><span id="nMore">More</span></button>
+  </nav>
+</div>
+
+<!-- Add expense modal -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="grip"></div>
+    <h3 id="modalTitle">Add expense</h3>
+    <div class="chipwrap" id="catChips"></div>
+    <div class="field"><label id="mAmtLbl">Amount (₪)</label><input type="number" inputmode="decimal" id="mAmt" placeholder="0" /></div>
+    <div class="field"><label id="mNoteLbl">Note (optional)</label><input type="text" id="mNote" placeholder="" /></div>
+    <div class="mrow">
+      <button class="btn ghost" id="mCancel" style="flex:1">Cancel</button>
+      <button class="btn" id="mSave" style="flex:2">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Category editor modal -->
+<div class="modal-bg" id="catModalBg">
+  <div class="modal">
+    <div class="grip"></div>
+    <h3 id="catModalTitle">Category</h3>
+    <div class="grid2">
+      <div class="field"><label id="cEmojiLbl">Icon</label><button type="button" class="iconbtn" id="cEmojiBtn">🛒</button></div>
+      <div class="field"><label id="cPlanLbl">Planned (₪)</label><input type="number" inputmode="numeric" id="cPlan" placeholder="0" /></div>
+    </div>
+    <div class="field"><label id="cNameHeLbl">Name (Hebrew)</label><input id="cNameHe" placeholder="" /></div>
+    <div class="field"><label id="cNameEnLbl">Name (English)</label><input id="cNameEn" placeholder="" /></div>
+    <div class="field"><label id="cTypeLbl">Type</label>
+      <select id="cType"><option value="fixed">Fixed</option><option value="variable">Variable</option></select></div>
+    <div class="mrow">
+      <button class="btn danger" id="cDelete" style="flex:1">Delete</button>
+      <button class="btn ghost" id="cCancel" style="flex:1">Cancel</button>
+      <button class="btn" id="cSave" style="flex:2">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Emoji picker modal -->
+<div class="modal-bg" id="emojiBg">
+  <div class="modal">
+    <div class="grip"></div>
+    <h3 id="emojiTitle">Choose icon</h3>
+    <input class="emojisearch" id="emojiSearch" placeholder="🔍" />
+    <div class="emojigrid" id="emojiGrid"></div>
+  </div>
+</div>
+
+<script>
+/* ============ i18n ============ */
+const I18N = {
+  he:{ dir:"rtl", langBtn:"EN",
+    heroTitle:"הוצאות משתנות החודש", ofPlanned:"מתוך", planned:"מתוכנן",
+    leftPlan:"נשאר בתקציב", overPlan:"חריגה מהתקציב",
+    sIncome:"הכנסה", sFixed:"קבוע", sSave:"חיסכון מתוכנן",
+    varSec:"הוצאות משתנות — בפועל מול תכנון", fixSec:"הוצאות קבועות (מחויב)",
+    fixNote:"מחושב כמתוכנן", quick:"הוספה מהירה", addOther:"הוספה לקטגוריה אחרת",
+    recent:"החודש", incomeSec:"הכנסה חודשית", incomeLbl:"הכנסה צפויה החודש",
+    varPlanSec:"הוצאות משתנות", fixPlanSec:"הוצאות קבועות", addCat:"הוסף",
+    savings:"חיסכון מתוכנן", export:"ייצוא", import:"ייבוא",
+    settings:"התראות", enableNotif:"הפעל התראות",
+    nActiveNow:"פעיל עכשיו", nOnPhone:"בנייד (בקרוב)",
+    permOn:"התראות מופעלות ✓", permOff:"התראות כבויות — הקש להפעלה",
+    everyMonthDay:"בכל", everyWeekDay:"בכל יום", atTime:"בשעה",
+    paceAlert:"בקצב הזה תגיע ל־", savingsAlertL:"חיסכון צפוי", largeAlertL:"הוצאה גדולה",
+    days:["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"],
+    NT:{
+      threshold:["סף קטגוריה","התראה כשמגיעים לאחוז מהתכנון"],
+      over:["חריגה מקטגוריה","כשעוברים 100% בקטגוריה כלשהי"],
+      large:["הוצאה גדולה","כשהוצאה בודדת עולה על סכום"],
+      pace:["קצב הוצאה","אם בקצב הנוכחי תחרוג מהתקציב החודשי"],
+      savings:["רצפת חיסכון","אם החיסכון הצפוי יורד מתחת לסכום"],
+      monthPlan:["תזכורת תכנון","תזכורת לתכנן את החודש הבא"],
+      weekly:["סיכום שבועי","סיכום קצר פעם בשבוע"],
+      dailyLog:["תזכורת יומית","תזכורת לרשום את ההוצאות של היום"],
+      onTrack:["עידוד ביעד","עדכון מעודד כשאתה בדרך לחסוך"]
+    },
+    roadmap:"בקרוב (אנדרואיד)", reset:"איפוס כל הנתונים",
+    nDash:"לוח", nTrack:"מעקב", nPlan:"תכנון", nMore:"עוד",
+    addExpense:"הוספת הוצאה", amt:"סכום (₪)", note:"הערה (רשות)",
+    cancel:"ביטול", save:"שמירה", category:"קטגוריה", delete:"מחיקה",
+    icon:"אייקון", plan:"מתוכנן (₪)", nameHe:"שם (עברית)", nameEn:"שם (אנגלית)",
+    type:"סוג", fixed:"קבועה", variable:"משתנה",
+    of:"מתוך", left:"נשאר", over:"חריגה", empty:"אין הוצאות עדיין",
+    emptyHint:"הקש על קטגוריה למעלה כדי להוסיף", chooseIcon:"בחר אייקון",
+    newCat:"קטגוריה חדשה", confirmReset:"למחוק את כל הנתונים? אי אפשר לבטל.",
+    confirmDelCat:"למחוק קטגוריה זו וכל ההוצאות שלה?",
+    alertOver:"חריגה של", alertNear:"מתקרב לגבול:", usedOf:"נוצל",
+    notifOn:"התראות הופעלו ✓", notifDenied:"ההרשאה נדחתה בדפדפן",
+    months:["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"],
+    roadmapItems:[
+      "🔔 התראות דחיפה אמיתיות בטלפון כשמתקרבים לגבול",
+      "📥 ייבוא CSV/אקסל מ־MAX ומאוצר החייל",
+      "🤖 ניתוח AI: היכן חרגת ומה לצמצם החודש הבא",
+      "🏠 התקנה כאפליקציה במסך הבית (PWA)"
+    ] },
+  en:{ dir:"ltr", langBtn:"עב",
+    heroTitle:"Variable spending this month", ofPlanned:"of", planned:"planned",
+    leftPlan:"left in budget", overPlan:"over budget",
+    sIncome:"Income", sFixed:"Committed", sSave:"Planned savings",
+    varSec:"Variable — actual vs planned", fixSec:"Fixed (committed)",
+    fixNote:"counted as planned", quick:"Quick add", addOther:"Add to another category",
+    recent:"This month", incomeSec:"Monthly income", incomeLbl:"Expected income this month",
+    varPlanSec:"Variable expenses", fixPlanSec:"Fixed expenses", addCat:"Add",
+    savings:"Planned savings", export:"Export", import:"Import",
+    settings:"Notifications", enableNotif:"Enable notifications",
+    nActiveNow:"Active now", nOnPhone:"On the phone (coming)",
+    permOn:"Notifications are on ✓", permOff:"Notifications off — tap to enable",
+    everyMonthDay:"On day", everyWeekDay:"Every", atTime:"At",
+    paceAlert:"At this rate you'll hit", savingsAlertL:"Projected savings", largeAlertL:"Large expense",
+    days:["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
+    NT:{
+      threshold:["Category threshold","Alert when a category reaches a % of plan"],
+      over:["Category over budget","When any category passes 100%"],
+      large:["Large expense","When a single expense exceeds an amount"],
+      pace:["Spending pace","If your current pace will blow the monthly budget"],
+      savings:["Savings floor","If projected savings drops below an amount"],
+      monthPlan:["Planning reminder","Reminder to plan next month"],
+      weekly:["Weekly summary","A short recap once a week"],
+      dailyLog:["Daily reminder","Reminder to log today's expenses"],
+      onTrack:["On-track cheer","An encouraging note when you're set to save"]
+    },
+    roadmap:"Coming next (Android)", reset:"Reset all data",
+    nDash:"Dashboard", nTrack:"Track", nPlan:"Plan", nMore:"More",
+    addExpense:"Add expense", amt:"Amount (₪)", note:"Note (optional)",
+    cancel:"Cancel", save:"Save", category:"Category", delete:"Delete",
+    icon:"Icon", plan:"Planned (₪)", nameHe:"Name (Hebrew)", nameEn:"Name (English)",
+    type:"Type", fixed:"Fixed", variable:"Variable",
+    of:"of", left:"left", over:"over", empty:"No expenses yet",
+    emptyHint:"Tap a category above to add one", chooseIcon:"Choose icon",
+    newCat:"New category", confirmReset:"Delete all data? This cannot be undone.",
+    confirmDelCat:"Delete this category and all its expenses?",
+    alertOver:"Over by", alertNear:"Getting close:", usedOf:"used",
+    notifOn:"Notifications enabled ✓", notifDenied:"Permission denied in browser",
+    months:["January","February","March","April","May","June","July","August","September","October","November","December"],
+    roadmapItems:[
+      "🔔 Real push notifications on your phone when nearing a limit",
+      "📥 Import CSV/Excel from MAX and Otzar Hahayal",
+      "🤖 AI insight: where you overspent and what to trim next month",
+      "🏠 Install as a home-screen app (PWA)"
+    ] }
+};
+
+/* ============ Seed data (from your Excel) ============ */
+const SEED_CATS = [
+  // Fixed = accepted facts (not tracked during the month)
+  {id:"rent",    he:"שכ\"ד",        en:"Rent",         emoji:"🏠", type:"fixed",    plan:6300},
+  {id:"insur",   he:"ביטוח",        en:"Insurance",    emoji:"🛡️", type:"fixed",    plan:390},
+  {id:"psych",   he:"פסיכולוגית",   en:"Psychologist", emoji:"🧠", type:"fixed",    plan:900},
+  {id:"ai",      he:"AI",           en:"AI / Subs",    emoji:"🤖", type:"fixed",    plan:200},
+  // Variable = tracked during the month
+  {id:"house",   he:"קניות הבית",   en:"House shopping",emoji:"🛒",type:"variable", plan:800},
+  {id:"living",  he:"מחייה",        en:"Living / fun", emoji:"☕", type:"variable", plan:600},
+  {id:"fuel",    he:"דלק",          en:"Fuel",         emoji:"⛽", type:"variable", plan:500},
+  {id:"pilates", he:"פילאטיס",      en:"Pilates",      emoji:"🧘", type:"variable", plan:50},
+  {id:"misc",    he:"חריגות",       en:"Misc / extra", emoji:"✨", type:"variable", plan:400},
+  {id:"haircut", he:"תספורת",       en:"Haircut",      emoji:"💈", type:"variable", plan:110},
+];
+const SEED_INCOME = 11000;
+const QUICK_LANE_IDS = ["house","living"];
+
+/* ============ Emoji library ============ */
+const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 ☕ 🍺 🍷 🍽️ 🚗 ⛽ 🚕 🅿️ 🚌 ✈️ 🏥 💊 🧠 🦷 🧘 🏋️ ⚽ 🎾 💈 💇 💅 👕 👖 👗 👟 👞 🧥 🎁 🎂 🎉 🎬 🎮 🎧 🎵 📚 ✏️ 🖥️ 💻 📱 🔌 💡 🐶 🐱 🎓 👶 🧸 💰 💳 🏦 📈 🧾 🔧 🛠️ 🧹 🪑 🛋️ 🔑 🌳 💐 ☂️ ❤️ ⭐ ✨ 🔔 🍼 🚿 🧴 📶".split(" ");
+
+/* ============ State ============ */
+let state = load();
+ensureNotif();
+let lang = state.lang || "he";
+let curKey = state.curMonth || monthKey(new Date());
+let curView = "dash";
+
+function monthKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function keyToDate(k){ const [y,m]=k.split("-").map(Number); return new Date(y,m-1,1); }
+function defaultMonth(){ return { income:SEED_INCOME, cats:JSON.parse(JSON.stringify(SEED_CATS)), expenses:[] }; }
+function defaultNotif(prevPct){
+  return {
+    threshold:{on:true, pct: prevPct||0.8},
+    over:{on:true},
+    large:{on:true, amount:400},
+    pace:{on:true},
+    savings:{on:false, amount:500},
+    monthPlan:{on:true, day:27},
+    weekly:{on:false, dow:0},
+    dailyLog:{on:false, time:"21:00"},
+    onTrack:{on:false}
+  };
+}
+function load(){
+  try{ const s=JSON.parse(localStorage.getItem("moneytoring")); if(s&&s.months) return s; }catch(e){}
+  const k=monthKey(new Date());
+  return { lang:"he", curMonth:k, notif:defaultNotif(), months:{ [k]:defaultMonth() } };
+}
+function ensureNotif(){
+  if(!state.notif){ state.notif = defaultNotif(state.threshold); delete state.threshold; save(); }
+  // fill any missing keys after upgrades
+  const d=defaultNotif(state.notif.threshold&&state.notif.threshold.pct);
+  for(const k in d){ if(!state.notif[k]) state.notif[k]=d[k]; }
+}
+function save(){ state.lang=lang; state.curMonth=curKey; localStorage.setItem("moneytoring",JSON.stringify(state)); }
+function M(){
+  if(!state.months[curKey]){
+    const prev=Object.keys(state.months).sort();
+    const base = prev.length ? state.months[prev[prev.length-1]] : defaultMonth();
+    state.months[curKey] = { income:base.income, cats:JSON.parse(JSON.stringify(base.cats)), expenses:[] };
+  }
+  return state.months[curKey];
+}
+
+/* ============ Helpers ============ */
+const t = k => I18N[lang][k];
+const fmt = n => "₪"+Math.round(n).toLocaleString("en-US");
+const varCats = () => M().cats.filter(c=>c.type==="variable");
+const fixCats = () => M().cats.filter(c=>c.type==="fixed");
+function spentByCat(id){ return M().expenses.filter(e=>e.cat===id).reduce((s,e)=>s+e.amt,0); }
+function varPlanned(){ return varCats().reduce((s,c)=>s+(+c.plan||0),0); }
+function varSpent(){ return M().expenses.reduce((s,e)=>s+e.amt,0); }
+function fixTotal(){ return fixCats().reduce((s,c)=>s+(+c.plan||0),0); }
+function plannedSavings(){ return (M().income||0) - fixTotal() - varPlanned(); }
+function catById(id){ return M().cats.find(c=>c.id===id); }
+function catName(c){ return lang==="he" ? c.he : c.en; }
+function TH(){ return state.notif.threshold.pct||0.8; }
+function barColor(r){ return r>1 ? "var(--over)" : r>=TH() ? "var(--warn)" : "var(--ok)"; }
+// Project month-end variable spend from current pace; null if too early / not current month
+function paceInfo(){
+  const now=new Date();
+  let frac=1;
+  if(curKey===monthKey(now)){
+    const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    frac=now.getDate()/dim;
+  }
+  if(frac<0.15) return null;
+  const sp=varSpent();
+  return { frac, projVar: frac>0 ? sp/frac : sp };
+}
+
+/* ============ Render ============ */
+function applyLang(){
+  document.documentElement.lang=lang; document.documentElement.dir=I18N[lang].dir;
+  document.getElementById("langBtn").textContent=t("langBtn");
+  const map={ heroTitle:"heroTitle", sIncomeL:"sIncome", sFixedL:"sFixed", sSaveL:"sSave",
+    tVarSec:"varSec", tFixSec:"fixSec", tFixNote:"fixNote", tQuick:"quick", tAddOther:"addOther",
+    tRecent:"recent", tIncomeSec:"incomeSec", tIncomeLbl:"incomeLbl", tVarPlanSec:"varPlanSec",
+    tFixPlanSec:"fixPlanSec", tSavings:"savings", tExport:"export", tImport:"import",
+    tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tEnableNotif:"enableNotif", tRoadmap:"roadmap",
+    tReset:"reset", nDash:"nDash", nTrack:"nTrack", nPlan:"nPlan", nMore:"nMore",
+    modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mCancel:"cancel", mSave:"save",
+    cEmojiLbl:"icon", cPlanLbl:"plan", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
+    cDelete:"delete", cCancel:"cancel", cSave:"save", emojiTitle:"chooseIcon" };
+  for(const [id,key] of Object.entries(map)){ const el=document.getElementById(id); if(el) el.textContent=t(key); }
+  document.querySelectorAll(".tAddCat").forEach(e=>e.textContent=t("addCat"));
+  document.querySelector("#cType option[value=fixed]").textContent=t("fixed");
+  document.querySelector("#cType option[value=variable]").textContent=t("variable");
+  document.getElementById("roadmapBox").innerHTML=I18N[lang].roadmapItems.map(x=>`<div style="margin:6px 0">${x}</div>`).join("");
+}
+function renderMonthLabel(){ const d=keyToDate(curKey); document.getElementById("mLabel").textContent=I18N[lang].months[d.getMonth()]+" "+d.getFullYear(); }
+
+function renderHero(){
+  const sp=varSpent(), pl=varPlanned();
+  document.getElementById("heroBig").textContent=fmt(sp);
+  const r = pl>0 ? sp/pl : 0;
+  const remain = pl-sp;
+  document.getElementById("heroSub").textContent =
+    `${t("ofPlanned")} ${fmt(pl)} ${t("planned")} · ${remain>=0 ? fmt(remain)+" "+t("leftPlan") : fmt(-remain)+" "+t("overPlan")}`;
+  const bar=document.getElementById("heroBar");
+  bar.style.width=Math.min(100,r*100)+"%";
+  bar.style.background = remain<0 ? "#ffd7d8" : "#fff";
+}
+function renderStats(){
+  document.getElementById("sIncome").textContent=fmt(M().income||0);
+  document.getElementById("sFixed").textContent=fmt(fixTotal());
+  const sv=plannedSavings();
+  const el=document.getElementById("sSave"); el.textContent=fmt(sv);
+  el.style.color = sv<0 ? "var(--over)" : "var(--brand)";
+}
+function renderAlerts(){
+  const wrap=document.getElementById("alertsWrap"); wrap.innerHTML="";
+  const n=state.notif, th=TH(); const items=[];
+  varCats().forEach(c=>{
+    const plan=+c.plan||0; if(plan<=0) return;
+    const r=spentByCat(c.id)/plan;
+    if(n.over.on && r>1) items.push({cls:"over",ico:"🚨",txt:`<b>${catName(c)}</b> — ${t("alertOver")} ${fmt(spentByCat(c.id)-plan)}`});
+    else if(n.threshold.on && r>=th) items.push({cls:"warn",ico:"⚠️",txt:`<b>${catName(c)}</b> — ${t("alertNear")} ${Math.round(r*100)}% ${t("usedOf")}`});
+  });
+  const pace=paceInfo();
+  if(pace){
+    if(n.pace.on && pace.projVar>varPlanned()*1.02)
+      items.push({cls:"warn",ico:"🏃",txt:`${t("paceAlert")} <b>${fmt(pace.projVar)}</b> — ${t("over")} ${fmt(pace.projVar-varPlanned())}`});
+    if(n.savings.on){
+      const projSave=(M().income||0)-fixTotal()-pace.projVar;
+      if(projSave < (+n.savings.amount||0))
+        items.push({cls:"over",ico:"🐷",txt:`${t("savingsAlertL")}: <b>${fmt(projSave)}</b>`});
+    }
+  }
+  items.slice(0,5).forEach(a=>{ const d=document.createElement("div"); d.className="alert "+a.cls;
+    d.innerHTML=`<span class="ico">${a.ico}</span><span>${a.txt}</span>`; wrap.appendChild(d); });
+}
+function renderVarCards(){
+  const box=document.getElementById("varCards"); box.innerHTML="";
+  [...varCats()].sort((a,b)=>spentByCat(b.id)-spentByCat(a.id)).forEach(c=>{
+    const plan=+c.plan||0, sp=spentByCat(c.id);
+    const r = plan>0 ? sp/plan : (sp>0?1.5:0), remain=plan-sp;
+    const row=document.createElement("div"); row.className="catrow";
+    row.innerHTML=`<div class="top">
+        <div class="emoji">${c.emoji||"💸"}</div>
+        <div class="name">${catName(c)}<small>${remain>=0?fmt(remain)+" "+t("left"):fmt(-remain)+" "+t("over")}</small></div>
+        <div class="amt"><b>${fmt(sp)}</b><small>${t("of")} ${fmt(plan)}</small></div>
+      </div>
+      <div class="pbar"><span style="width:${Math.min(100,r*100)}%;background:${barColor(r)}"></span></div>`;
+    box.appendChild(row);
+  });
+}
+function renderFixCards(){
+  const box=document.getElementById("fixCards"); box.innerHTML="";
+  fixCats().forEach(c=>{
+    const row=document.createElement("div"); row.className="fixrow";
+    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div><div class="name">${catName(c)}</div>
+      <div class="val num">${fmt(+c.plan||0)}</div>`;
+    box.appendChild(row);
+  });
+}
+function renderLanes(){
+  const box=document.getElementById("lanes"); box.innerHTML="";
+  QUICK_LANE_IDS.forEach(id=>{
+    const c=catById(id); if(!c) return;
+    const sp=spentByCat(id), plan=+c.plan||0, r=plan>0?sp/plan:0;
+    const el=document.createElement("div"); el.className="lane";
+    el.innerHTML=`<div class="li">${c.emoji}</div><div class="ln">${catName(c)}</div>
+      <div class="lv num">${fmt(sp)} / ${fmt(plan)}</div>
+      <div class="lbar"><span style="width:${Math.min(100,r*100)}%;background:${barColor(r)}"></span></div>`;
+    el.onclick=()=>openExpenseModal(id); box.appendChild(el);
+  });
+}
+function renderExpenses(){
+  const box=document.getElementById("expList");
+  const exps=[...M().expenses].sort((a,b)=>b.ts-a.ts);
+  if(!exps.length){ box.innerHTML=`<div class="empty"><div class="big">🧾</div>${t("empty")}<br><small>${t("emptyHint")}</small></div>`; return; }
+  box.innerHTML="";
+  exps.forEach(e=>{
+    const c=catById(e.cat), d=new Date(e.ts);
+    const dstr=`${d.getDate()}/${d.getMonth()+1} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+    const row=document.createElement("div"); row.className="exp";
+    row.innerHTML=`<div class="emoji">${c?c.emoji:"💸"}</div>
+      <div class="meta"><b>${c?catName(c):"?"}</b><small class="rtl-flip">${e.note?e.note+" · ":""}${dstr}</small></div>
+      <div class="val num">${fmt(e.amt)}</div><button class="del">✕</button>`;
+    row.querySelector(".del").onclick=()=>{ M().expenses=M().expenses.filter(x=>x.id!==e.id); save(); renderAll(); };
+    box.appendChild(row);
+  });
+}
+function renderPlanList(box, cats){
+  box.innerHTML="";
+  cats.forEach(c=>{
+    const row=document.createElement("div"); row.className="fixrow"; row.style.cursor="pointer";
+    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div><div class="name">${catName(c)}</div>
+      <div class="val num">${fmt(+c.plan||0)}</div><span style="color:var(--faint);font-size:15px">✎</span>`;
+    row.onclick=()=>openCatModal(c.id); box.appendChild(row);
+  });
+  if(!cats.length) box.innerHTML=`<div class="empty" style="padding:16px">—</div>`;
+}
+function renderPlan(){
+  document.getElementById("incomeInput").value=M().income||"";
+  renderPlanList(document.getElementById("planVar"), varCats());
+  renderPlanList(document.getElementById("planFix"), fixCats());
+  document.getElementById("savingsVal").textContent=fmt(plannedSavings());
+}
+
+/* ---- Notification settings (toggles + parameters) ---- */
+const NOTIF_DEFS=[
+  {key:"threshold",group:"now",  icon:"⚠️", param:"pct"},
+  {key:"over",     group:"now",  icon:"🚨", param:null},
+  {key:"large",    group:"now",  icon:"💥", param:"amount"},
+  {key:"pace",     group:"now",  icon:"🏃", param:null},
+  {key:"savings",  group:"now",  icon:"🐷", param:"amount"},
+  {key:"monthPlan",group:"phone",icon:"🗓️", param:"day"},
+  {key:"weekly",   group:"phone",icon:"📅", param:"dow"},
+  {key:"dailyLog", group:"phone",icon:"⏰", param:"time"},
+  {key:"onTrack",  group:"phone",icon:"🎯", param:null},
+];
+function paramControl(def,cfg){
+  const wrap=document.createElement("div"); wrap.className="setparam";
+  const row=document.createElement("div"); row.className="row"; wrap.appendChild(row);
+  const addUnit=txt=>{ const u=document.createElement("span"); u.className="unit"; u.textContent=txt; return u; };
+  if(def.param==="pct"){
+    const sel=document.createElement("select");
+    [[0.7,"70%"],[0.8,"80%"],[0.9,"90%"],[1,"100%"]].forEach(([v,l])=>{ const o=document.createElement("option"); o.value=v; o.textContent=l; if(Math.abs(v-cfg.pct)<0.001)o.selected=true; sel.appendChild(o); });
+    sel.onchange=()=>{ cfg.pct=parseFloat(sel.value); save(); renderAlerts(); renderVarCards(); renderLanes(); };
+    row.appendChild(sel);
+  } else if(def.param==="amount"){
+    row.appendChild(addUnit("₪"));
+    const inp=document.createElement("input"); inp.type="number"; inp.inputMode="numeric"; inp.value=cfg.amount||"";
+    inp.oninput=()=>{ cfg.amount=parseFloat(inp.value)||0; save(); renderAlerts(); };
+    row.appendChild(inp);
+  } else if(def.param==="day"){
+    row.appendChild(addUnit(t("everyMonthDay")));
+    const inp=document.createElement("input"); inp.type="number"; inp.min=1; inp.max=28; inp.value=cfg.day||27;
+    inp.oninput=()=>{ let v=parseInt(inp.value)||27; cfg.day=Math.max(1,Math.min(28,v)); save(); };
+    row.appendChild(inp);
+  } else if(def.param==="dow"){
+    row.appendChild(addUnit(t("everyWeekDay")));
+    const sel=document.createElement("select");
+    t("days").forEach((d,i)=>{ const o=document.createElement("option"); o.value=i; o.textContent=d; if(i===cfg.dow)o.selected=true; sel.appendChild(o); });
+    sel.onchange=()=>{ cfg.dow=parseInt(sel.value); save(); };
+    row.appendChild(sel);
+  } else if(def.param==="time"){
+    row.appendChild(addUnit(t("atTime")));
+    const inp=document.createElement("input"); inp.type="time"; inp.value=cfg.time||"21:00";
+    inp.oninput=()=>{ cfg.time=inp.value; save(); };
+    row.appendChild(inp);
+  }
+  return wrap;
+}
+function renderNotifSettings(){
+  const nowBox=document.getElementById("notifNow"), phoneBox=document.getElementById("notifPhone");
+  if(!nowBox||!phoneBox) return;
+  nowBox.innerHTML=""; phoneBox.innerHTML="";
+  NOTIF_DEFS.forEach(def=>{
+    const cfg=state.notif[def.key]; const meta=I18N[lang].NT[def.key];
+    const row=document.createElement("div"); row.className="setrow";
+    const main=document.createElement("div"); main.className="setmain";
+    main.innerHTML=`<div class="seticon">${def.icon}</div><div class="settext"><b>${meta[0]}</b><small>${meta[1]}</small></div>`;
+    const sw=document.createElement("label"); sw.className="switch";
+    const cb=document.createElement("input"); cb.type="checkbox"; cb.checked=!!cfg.on;
+    const sl=document.createElement("span"); sl.className="slider";
+    sw.appendChild(cb); sw.appendChild(sl); main.appendChild(sw);
+    row.appendChild(main);
+    const pc = def.param ? paramControl(def,cfg) : null;
+    if(pc){ if(!cfg.on) pc.classList.add("hide"); row.appendChild(pc); }
+    cb.onchange=()=>{ cfg.on=cb.checked; save(); if(pc) pc.classList.toggle("hide",!cb.checked); renderAlerts(); };
+    (def.group==="now"?nowBox:phoneBox).appendChild(row);
+  });
+  const note=document.getElementById("notifPermNote");
+  if(note){
+    const granted=("Notification" in window)&&Notification.permission==="granted";
+    note.textContent = granted ? t("permOn") : t("permOff");
+    note.style.color = granted ? "var(--brand)" : "var(--muted)";
+  }
+}
+function renderNav(){
+  document.querySelectorAll("nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===curView));
+  ["dash","track","plan","more"].forEach(v=>document.getElementById("view-"+v).classList.toggle("hide",v!==curView));
+}
+function renderAll(){
+  applyLang(); renderMonthLabel(); renderHero(); renderStats(); renderAlerts();
+  renderVarCards(); renderFixCards(); renderLanes(); renderExpenses(); renderPlan();
+  renderNotifSettings(); renderNav();
+}
+
+/* ============ Expense modal (variable only) ============ */
+let modalCat=null;
+function openExpenseModal(catId){
+  const vs=varCats(); if(!vs.length) return;
+  modalCat=catId||vs[0].id;
+  const chips=document.getElementById("catChips"); chips.innerHTML="";
+  vs.forEach(c=>{
+    const el=document.createElement("div"); el.className="chip"+(c.id===modalCat?" sel":"");
+    el.innerHTML=`<span>${c.emoji}</span><span>${catName(c)}</span>`;
+    el.onclick=()=>{ modalCat=c.id; document.querySelectorAll("#catChips .chip").forEach(x=>x.classList.remove("sel")); el.classList.add("sel"); };
+    chips.appendChild(el);
+  });
+  document.getElementById("mAmt").value=""; document.getElementById("mNote").value="";
+  document.getElementById("modalBg").classList.add("show");
+  setTimeout(()=>document.getElementById("mAmt").focus(),150);
+}
+const closeExpenseModal=()=>document.getElementById("modalBg").classList.remove("show");
+document.getElementById("mCancel").onclick=closeExpenseModal;
+document.getElementById("modalBg").onclick=e=>{ if(e.target.id==="modalBg") closeExpenseModal(); };
+document.getElementById("mSave").onclick=()=>{
+  const amt=parseFloat(document.getElementById("mAmt").value);
+  if(!amt||amt<=0){ document.getElementById("mAmt").focus(); return; }
+  const note=document.getElementById("mNote").value.trim();
+  M().expenses.push({ id:Date.now()+"-"+Math.random().toString(36).slice(2,6), cat:modalCat, amt, note, ts:Date.now() });
+  save(); closeExpenseModal(); maybeNotify(modalCat, amt); renderAll();
+};
+
+/* ============ Category modal ============ */
+let editCatId=null, newCatType="variable", pickedEmoji="🛒";
+function openCatModal(id, type){
+  editCatId=id;
+  const c = id ? catById(id) : {emoji:"🛒",plan:"",he:"",en:"",type:type||"variable"};
+  newCatType=c.type; pickedEmoji=c.emoji||"🛒";
+  document.getElementById("catModalTitle").textContent = id ? catName(c) : t("newCat");
+  document.getElementById("cEmojiBtn").textContent=pickedEmoji;
+  document.getElementById("cPlan").value=c.plan||"";
+  document.getElementById("cNameHe").value=c.he||"";
+  document.getElementById("cNameEn").value=c.en||"";
+  document.getElementById("cType").value=c.type||"variable";
+  document.getElementById("cDelete").style.display=id?"":"none";
+  document.getElementById("catModalBg").classList.add("show");
+}
+const closeCatModal=()=>document.getElementById("catModalBg").classList.remove("show");
+document.getElementById("cCancel").onclick=closeCatModal;
+document.getElementById("catModalBg").onclick=e=>{ if(e.target.id==="catModalBg") closeCatModal(); };
+document.getElementById("cEmojiBtn").onclick=()=>openEmojiPicker(em=>{ pickedEmoji=em; document.getElementById("cEmojiBtn").textContent=em; });
+document.getElementById("cSave").onclick=()=>{
+  const he=document.getElementById("cNameHe").value.trim(), en=document.getElementById("cNameEn").value.trim();
+  if(!he&&!en){ document.getElementById("cNameHe").focus(); return; }
+  const data={ emoji:pickedEmoji||"💸", plan:parseFloat(document.getElementById("cPlan").value)||0,
+    he:he||en, en:en||he, type:document.getElementById("cType").value };
+  if(editCatId) Object.assign(catById(editCatId),data);
+  else { data.id="c"+Date.now(); M().cats.push(data); }
+  save(); closeCatModal(); renderAll();
+};
+document.getElementById("cDelete").onclick=()=>{
+  if(!editCatId||!confirm(t("confirmDelCat"))) return;
+  M().cats=M().cats.filter(c=>c.id!==editCatId);
+  M().expenses=M().expenses.filter(e=>e.cat!==editCatId);
+  save(); closeCatModal(); renderAll();
+};
+
+/* ============ Emoji picker ============ */
+let emojiCb=null;
+function openEmojiPicker(cb){
+  emojiCb=cb; document.getElementById("emojiSearch").value="";
+  buildEmojiGrid(""); document.getElementById("emojiBg").classList.add("show");
+}
+function buildEmojiGrid(q){
+  const grid=document.getElementById("emojiGrid"); grid.innerHTML="";
+  EMOJIS.forEach(em=>{
+    const b=document.createElement("button"); b.textContent=em;
+    b.onclick=()=>{ if(emojiCb) emojiCb(em); document.getElementById("emojiBg").classList.remove("show"); };
+    grid.appendChild(b);
+  });
+}
+document.getElementById("emojiBg").onclick=e=>{ if(e.target.id==="emojiBg") e.currentTarget.classList.remove("show"); };
+document.getElementById("emojiSearch").oninput=e=>{
+  const v=e.target.value.trim();
+  // allow typing/pasting a raw emoji directly
+  if(v && [...v].length<=2 && !/[a-zA-Z֐-׿]/.test(v)){ if(emojiCb) emojiCb(v); document.getElementById("emojiBg").classList.remove("show"); }
+};
+
+/* ============ Notifications ============ */
+function fireNotifs(msgs){
+  if(!("Notification" in window) || Notification.permission!=="granted") return;
+  msgs.slice(0,3).forEach(m=>{ try{ new Notification("MoneyToring",{body:m}); }catch(e){} });
+}
+function maybeNotify(catId, amt){
+  const n=state.notif, c=catById(catId); if(!c) return;
+  const msgs=[];
+  const plan=+c.plan||0;
+  if(plan>0){
+    const r=spentByCat(catId)/plan;
+    if(n.over.on && r>1) msgs.push(`🚨 ${catName(c)} — ${t("alertOver")} ${fmt(spentByCat(catId)-plan)}`);
+    else if(n.threshold.on && r>=TH()) msgs.push(`⚠️ ${catName(c)} — ${Math.round(r*100)}% ${t("usedOf")}`);
+  }
+  if(n.large.on && amt>0 && amt>=(+n.large.amount||0)) msgs.push(`💥 ${t("largeAlertL")}: ${fmt(amt)} · ${catName(c)}`);
+  const pace=paceInfo();
+  if(pace){
+    if(n.pace.on && pace.projVar>varPlanned()*1.02) msgs.push(`🏃 ${t("paceAlert")} ${fmt(pace.projVar)} (${t("over")} ${fmt(pace.projVar-varPlanned())})`);
+    if(n.savings.on){ const projSave=(M().income||0)-fixTotal()-pace.projVar; if(projSave<(+n.savings.amount||0)) msgs.push(`🐷 ${t("savingsAlertL")}: ${fmt(projSave)}`); }
+  }
+  fireNotifs(msgs);
+}
+document.getElementById("notifBtn").onclick=async()=>{
+  if(!("Notification" in window)){ alert("No notifications in this browser"); return; }
+  const p=await Notification.requestPermission();
+  if(p==="granted") new Notification("MoneyToring",{body:t("notifOn")}); else alert(t("notifDenied"));
+  renderNotifSettings();
+};
+
+/* ============ Wiring ============ */
+document.getElementById("langBtn").onclick=()=>{ lang=lang==="he"?"en":"he"; save(); renderAll(); };
+document.getElementById("prevM").onclick=()=>{ const d=keyToDate(curKey); d.setMonth(d.getMonth()-1); curKey=monthKey(d); save(); renderAll(); };
+document.getElementById("nextM").onclick=()=>{ const d=keyToDate(curKey); d.setMonth(d.getMonth()+1); curKey=monthKey(d); save(); renderAll(); };
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{ curView=b.dataset.view; renderNav(); });
+document.getElementById("addOther").onclick=()=>openExpenseModal(null);
+document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>openCatModal(null,b.dataset.add));
+document.getElementById("incomeInput").oninput=e=>{ M().income=parseFloat(e.target.value)||0; save(); renderHero(); renderStats(); document.getElementById("savingsVal").textContent=fmt(plannedSavings()); };
+document.getElementById("resetBtn").onclick=()=>{ if(confirm(t("confirmReset"))){ localStorage.removeItem("moneytoring"); location.reload(); } };
+document.getElementById("exportBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="moneytoring-"+curKey+".json"; a.click(); };
+document.getElementById("importBtn").onclick=()=>document.getElementById("importFile").click();
+document.getElementById("importFile").onchange=e=>{ const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader(); r.onload=()=>{ try{ const s=JSON.parse(r.result); if(s.months){ state=s; lang=s.lang||lang; curKey=s.curMonth||curKey; save(); renderAll(); } }catch(err){ alert("Invalid file"); } };
+  r.readAsText(f); };
+
+renderAll();
+
+/* Register service worker for offline use (activates over HTTPS or localhost) */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("./sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
