@@ -251,6 +251,7 @@
       <div class="section-title"><span id="tSettings">Notifications</span></div>
       <div class="card pad">
         <button class="btn ghost" id="notifBtn">🔔 <span id="tEnableNotif">Enable notifications</span></button>
+        <button class="btn ghost" id="notifTestBtn" style="margin-top:10px">📨 <span id="tTestNotif">Send test notification</span></button>
         <div id="notifPermNote" style="font-size:11.5px;color:var(--muted);margin-top:9px;text-align:center"></div>
       </div>
       <div class="section-title"><span id="tNActiveNow">Active now</span></div>
@@ -330,7 +331,8 @@ const I18N = {
     recent:"החודש", incomeSec:"הכנסה חודשית", incomeLbl:"הכנסה צפויה החודש",
     varPlanSec:"הוצאות משתנות", fixPlanSec:"הוצאות קבועות", addCat:"הוסף",
     savings:"חיסכון מתוכנן", export:"ייצוא", import:"ייבוא",
-    settings:"התראות", enableNotif:"הפעל התראות",
+    settings:"התראות", enableNotif:"הפעל התראות", testNotif:"שלח התראת בדיקה",
+    testNotifBody:"זו התראת בדיקה — ההתראות עובדות! ✓",
     nActiveNow:"פעיל עכשיו", nOnPhone:"בנייד (בקרוב)",
     permOn:"התראות מופעלות ✓", permOff:"התראות כבויות — הקש להפעלה",
     everyMonthDay:"בכל", everyWeekDay:"בכל יום", atTime:"בשעה",
@@ -375,7 +377,8 @@ const I18N = {
     recent:"This month", incomeSec:"Monthly income", incomeLbl:"Expected income this month",
     varPlanSec:"Variable expenses", fixPlanSec:"Fixed expenses", addCat:"Add",
     savings:"Planned savings", export:"Export", import:"Import",
-    settings:"Notifications", enableNotif:"Enable notifications",
+    settings:"Notifications", enableNotif:"Enable notifications", testNotif:"Send test notification",
+    testNotifBody:"This is a test — notifications work! ✓",
     nActiveNow:"Active now", nOnPhone:"On the phone (coming)",
     permOn:"Notifications are on ✓", permOff:"Notifications off — tap to enable",
     everyMonthDay:"On day", everyWeekDay:"Every", atTime:"At",
@@ -513,7 +516,7 @@ function applyLang(){
     tVarSec:"varSec", tFixSec:"fixSec", tFixNote:"fixNote", tQuick:"quick", tAddOther:"addOther",
     tRecent:"recent", tIncomeSec:"incomeSec", tIncomeLbl:"incomeLbl", tVarPlanSec:"varPlanSec",
     tFixPlanSec:"fixPlanSec", tSavings:"savings", tExport:"export", tImport:"import",
-    tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tEnableNotif:"enableNotif", tRoadmap:"roadmap",
+    tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tEnableNotif:"enableNotif", tTestNotif:"testNotif", tRoadmap:"roadmap",
     tReset:"reset", nDash:"nDash", nTrack:"nTrack", nPlan:"nPlan", nMore:"nMore",
     modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mCancel:"cancel", mSave:"save",
     cEmojiLbl:"icon", cPlanLbl:"plan", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
@@ -800,9 +803,27 @@ document.getElementById("emojiSearch").oninput=e=>{
 };
 
 /* ============ Notifications ============ */
+// Show a notification. On Android Chrome the Notification constructor throws —
+// notifications must go through the service worker registration. Fall back to
+// the constructor on desktop browsers that support it.
+async function showNotif(title, body){
+  try{
+    if("serviceWorker" in navigator){
+      const reg = await navigator.serviceWorker.getRegistration();
+      if(reg && reg.showNotification){
+        await reg.showNotification(title, { body, icon:"./icon-192.png", badge:"./icon-192.png", lang, dir:I18N[lang].dir });
+        return true;
+      }
+    }
+    if("Notification" in window){ new Notification(title, { body, icon:"./icon-192.png" }); return true; }
+  }catch(e){
+    try{ new Notification(title, { body }); return true; }catch(_){ }
+  }
+  return false;
+}
 function fireNotifs(msgs){
   if(!("Notification" in window) || Notification.permission!=="granted") return;
-  msgs.slice(0,3).forEach(m=>{ try{ new Notification("MoneyToring",{body:m}); }catch(e){} });
+  msgs.slice(0,3).forEach(m=> showNotif("MoneyToring", m));
 }
 function maybeNotify(catId, amt){
   const n=state.notif, c=catById(catId); if(!c) return;
@@ -824,8 +845,18 @@ function maybeNotify(catId, amt){
 document.getElementById("notifBtn").onclick=async()=>{
   if(!("Notification" in window)){ alert("No notifications in this browser"); return; }
   const p=await Notification.requestPermission();
-  if(p==="granted") new Notification("MoneyToring",{body:t("notifOn")}); else alert(t("notifDenied"));
+  if(p==="granted") showNotif("MoneyToring", t("notifOn")); else alert(t("notifDenied"));
   renderNotifSettings();
+};
+document.getElementById("notifTestBtn").onclick=async()=>{
+  if(!("Notification" in window)){ alert("No notifications in this browser"); return; }
+  if(Notification.permission!=="granted"){
+    const p=await Notification.requestPermission();
+    if(p!=="granted"){ alert(t("notifDenied")); return; }
+    renderNotifSettings();
+  }
+  const ok=await showNotif("MoneyToring 🔔", t("testNotifBody"));
+  if(!ok) alert(t("notifDenied"));
 };
 
 /* ============ Wiring ============ */

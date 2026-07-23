@@ -1,5 +1,5 @@
-/* MoneyToring service worker — offline cache so the installed app works with no internet */
-const CACHE = "moneytoring-v0.2";
+/* MoneyToring service worker — offline cache + fresh updates */
+const CACHE = "moneytoring-v0.3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -17,14 +17,28 @@ self.addEventListener("activate", e => {
   );
 });
 self.addEventListener("fetch", e => {
-  if (e.request.method !== "GET") return;
-  e.respondWith(
-    caches.match(e.request).then(hit =>
-      hit || fetch(e.request).then(res => {
+  const req = e.request;
+  if (req.method !== "GET") return;
+  // Network-first for page navigations so updates arrive immediately when online;
+  // fall back to cache when offline.
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req).then(res => {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, copy)).catch(() => {});
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
         return res;
-      }).catch(() => caches.match("./index.html"))
+      }).catch(() => caches.match(req).then(hit => hit || caches.match("./index.html")))
+    );
+    return;
+  }
+  // Cache-first for static assets (icons, manifest).
+  e.respondWith(
+    caches.match(req).then(hit =>
+      hit || fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        return res;
+      }).catch(() => hit)
     )
   );
 });
