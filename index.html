@@ -157,6 +157,7 @@
   .emojigrid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-height:46vh;overflow:auto}
   .emojigrid button{background:var(--card2);border:1px solid transparent;border-radius:10px;font-size:22px;padding:8px 0;cursor:pointer;line-height:1}
   .emojigrid button:active{border-color:var(--brand);background:#0e9f6e14}
+  .notif-dim{opacity:.4;pointer-events:none;transition:opacity .2s}
 
   /* Toggle switch + settings rows */
   .switch{position:relative;display:inline-block;width:44px;height:26px;flex:none}
@@ -263,15 +264,25 @@
     <!-- ===== MORE ===== -->
     <section id="view-more" class="hide">
       <div class="section-title"><span id="tSettings">Notifications</span></div>
+      <div class="card">
+        <div class="setrow" style="border-bottom:none">
+          <div class="setmain">
+            <div class="seticon">🔔</div>
+            <div class="settext"><b id="tMasterTitle">All notifications</b><small id="tMasterDesc">Master on/off switch</small></div>
+            <label class="switch"><input type="checkbox" id="masterSwitch"><span class="slider"></span></label>
+          </div>
+        </div>
+      </div>
       <div class="card pad">
-        <button class="btn ghost" id="notifBtn">🔔 <span id="tEnableNotif">Enable notifications</span></button>
-        <button class="btn ghost" id="notifTestBtn" style="margin-top:10px">📨 <span id="tTestNotif">Send test notification</span></button>
+        <button class="btn ghost" id="notifTestBtn">📨 <span id="tTestNotif">Send test notification</span></button>
         <div id="notifPermNote" style="font-size:11.5px;color:var(--muted);margin-top:9px;text-align:center"></div>
       </div>
-      <div class="section-title"><span id="tNActiveNow">Active now</span></div>
-      <div class="card" id="notifNow"></div>
-      <div class="section-title"><span id="tNOnPhone">On the phone (coming)</span></div>
-      <div class="card" id="notifPhone"></div>
+      <div id="notifGroups">
+        <div class="section-title"><span id="tNActiveNow">Active now</span></div>
+        <div class="card" id="notifNow"></div>
+        <div class="section-title"><span id="tNOnPhone">On the phone (coming)</span></div>
+        <div class="card" id="notifPhone"></div>
+      </div>
       <div class="section-title"><span id="tRoadmap">Coming next (Android)</span></div>
       <div class="card pad" style="font-size:13.5px;color:var(--muted);line-height:1.7" id="roadmapBox"></div>
       <button class="btn danger" id="resetBtn">🗑 <span id="tReset">Reset all data</span></button>
@@ -348,6 +359,8 @@ const I18N = {
     savings:"חיסכון מתוכנן", export:"ייצוא", import:"ייבוא",
     settings:"התראות", enableNotif:"הפעל התראות", testNotif:"שלח התראת בדיקה",
     testNotifBody:"זו התראת בדיקה — ההתראות עובדות! ✓",
+    masterTitle:"כל ההתראות", masterDesc:"מתג ראשי — הפעלה/כיבוי של הכל",
+    masterOff:"ההתראות כבויות — הפעל את המתג הראשי",
     nActiveNow:"פעיל עכשיו", nOnPhone:"בנייד (בקרוב)",
     permOn:"התראות מופעלות ✓", permOff:"התראות כבויות — הקש להפעלה",
     everyMonthDay:"בכל", everyWeekDay:"בכל יום", atTime:"בשעה",
@@ -395,6 +408,8 @@ const I18N = {
     savings:"Planned savings", export:"Export", import:"Import",
     settings:"Notifications", enableNotif:"Enable notifications", testNotif:"Send test notification",
     testNotifBody:"This is a test — notifications work! ✓",
+    masterTitle:"All notifications", masterDesc:"Master switch — turn everything on/off",
+    masterOff:"Notifications are off — turn on the master switch",
     nActiveNow:"Active now", nOnPhone:"On the phone (coming)",
     permOn:"Notifications are on ✓", permOff:"Notifications off — tap to enable",
     everyMonthDay:"On day", everyWeekDay:"Every", atTime:"At",
@@ -488,10 +503,13 @@ function load(){
   return { lang:"he", curMonth:k, notif:defaultNotif(), months:{ [k]:defaultMonth() } };
 }
 function ensureNotif(){
-  if(!state.notif){ state.notif = defaultNotif(state.threshold); delete state.threshold; save(); }
-  // fill any missing keys after upgrades
+  if(!state.notif){ state.notif = defaultNotif(state.threshold); delete state.threshold; }
+  // fill any missing object keys after upgrades (these are all objects, never falsy)
   const d=defaultNotif(state.notif.threshold&&state.notif.threshold.pct);
   for(const k in d){ if(!state.notif[k]) state.notif[k]=d[k]; }
+  // master on/off switch (boolean — guard specifically so 'false' is not overwritten)
+  if(state.notif.master===undefined) state.notif.master=true;
+  save();
 }
 function ensureSteps(){
   // Give existing Pilates a ₪25 unit price for the +/- button (one-time upgrade)
@@ -546,7 +564,7 @@ function applyLang(){
     tVarSec:"varSec", tFixSec:"fixSec", tFixNote:"fixNote", tQuick:"quick", tAddOther:"addOther",
     tRecent:"recent", tSteppers:"steppers", tIncomeSec:"incomeSec", tIncomeLbl:"incomeLbl", tVarPlanSec:"varPlanSec",
     tFixPlanSec:"fixPlanSec", tSavings:"savings", tExport:"export", tImport:"import",
-    tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tEnableNotif:"enableNotif", tTestNotif:"testNotif", tRoadmap:"roadmap",
+    tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tMasterTitle:"masterTitle", tMasterDesc:"masterDesc", tTestNotif:"testNotif", tRoadmap:"roadmap",
     tReset:"reset", nDash:"nDash", nTrack:"nTrack", nPlan:"nPlan", nMore:"nMore",
     modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mCancel:"cancel", mSave:"save",
     cEmojiLbl:"icon", cPlanLbl:"plan", cStepLbl:"unitPrice", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
@@ -755,11 +773,17 @@ function renderNotifSettings(){
     cb.onchange=()=>{ cfg.on=cb.checked; save(); if(pc) pc.classList.toggle("hide",!cb.checked); renderAlerts(); };
     (def.group==="now"?nowBox:phoneBox).appendChild(row);
   });
+  const granted=("Notification" in window)&&Notification.permission==="granted";
+  const on = !!state.notif.master && granted;
+  const sw=document.getElementById("masterSwitch");
+  if(sw) sw.checked = on;
+  // dim the per-type settings + test button when the master switch is off
+  const groups=document.getElementById("notifGroups");
+  if(groups) groups.classList.toggle("notif-dim", !state.notif.master);
   const note=document.getElementById("notifPermNote");
   if(note){
-    const granted=("Notification" in window)&&Notification.permission==="granted";
-    note.textContent = granted ? t("permOn") : t("permOff");
-    note.style.color = granted ? "var(--brand)" : "var(--muted)";
+    note.textContent = on ? t("permOn") : (state.notif.master ? t("permOff") : t("masterOff"));
+    note.style.color = on ? "var(--brand)" : "var(--muted)";
   }
 }
 function renderNav(){
@@ -877,6 +901,7 @@ async function showNotif(title, body){
   return false;
 }
 function fireNotifs(msgs){
+  if(!state.notif.master) return;                                   // master off = all notifications off
   if(!("Notification" in window) || Notification.permission!=="granted") return;
   msgs.slice(0,3).forEach(m=> showNotif("MoneyToring", m));
 }
@@ -897,11 +922,18 @@ function maybeNotify(catId, amt){
   }
   fireNotifs(msgs);
 }
-document.getElementById("notifBtn").onclick=async()=>{
-  if(!("Notification" in window)){ alert("No notifications in this browser"); return; }
-  const p=await Notification.requestPermission();
-  if(p!=="granted") alert(t("notifDenied"));
-  renderNotifSettings();
+document.getElementById("masterSwitch").onchange=async(e)=>{
+  if(e.target.checked){
+    // turning ON — needs permission
+    if(!("Notification" in window)){ alert("No notifications in this browser"); e.target.checked=false; return; }
+    let p=Notification.permission;
+    if(p!=="granted") p=await Notification.requestPermission();
+    if(p==="granted"){ state.notif.master=true; }
+    else { alert(t("notifDenied")); state.notif.master=false; }
+  } else {
+    state.notif.master=false;   // turning OFF — silence everything
+  }
+  save(); renderNotifSettings();
 };
 document.getElementById("notifTestBtn").onclick=async()=>{
   if(!("Notification" in window)){ alert("No notifications in this browser"); return; }
