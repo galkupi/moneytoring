@@ -1,5 +1,5 @@
 /* MoneyToring service worker — offline cache + fresh updates */
-const CACHE = "moneytoring-v0.3";
+const CACHE = "moneytoring-v0.4";
 const ASSETS = [
   "./",
   "./index.html",

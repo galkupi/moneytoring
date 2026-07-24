@@ -104,6 +104,16 @@
   .lane .lv{color:var(--muted);font-size:12px;margin-top:3px}
   .lane .lbar{height:6px;border-radius:99px;background:var(--card2);overflow:hidden;margin-top:9px}
   .lane .lbar>span{display:block;height:100%;border-radius:99px}
+  /* +/- steppers (unit-price categories like Pilates) */
+  .stepper{display:flex;align-items:center;gap:11px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .stepper:last-child{border-bottom:none}
+  .stepper .name{flex:1;font-weight:600;min-width:0}
+  .stepper .name small{display:block;color:var(--muted);font-weight:400;font-size:11.5px;margin-top:1px}
+  .stepper .btns{display:flex;gap:8px;align-items:center;flex:none}
+  .stepbtn{height:42px;min-width:46px;padding:0 12px;border-radius:12px;border:none;cursor:pointer;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+  .stepbtn.plus{background:var(--brand);color:#fff;box-shadow:0 3px 10px #0e9f6e40}
+  .stepbtn.minus{background:var(--card2);color:var(--text);border:1px solid var(--line);min-width:42px}
+  .stepbtn:active{transform:scale(.94)}
 
   /* Expense list */
   .exp{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line)}
@@ -214,7 +224,11 @@
     <section id="view-track" class="hide">
       <div class="section-title"><span id="tQuick">Quick add</span></div>
       <div class="lanes" id="lanes"></div>
-      <button class="btn ghost" id="addOther" style="margin-bottom:16px">➕ <span id="tAddOther">Add to another category</span></button>
+      <div id="steppersWrap" class="hide">
+        <div class="section-title"><span id="tSteppers">Tap to add</span></div>
+        <div class="card"><div id="steppers"></div></div>
+      </div>
+      <button class="btn ghost" id="addOther" style="margin:2px 0 16px">➕ <span id="tAddOther">Add to another category</span></button>
       <div class="section-title"><span id="tRecent">This month</span></div>
       <div class="card" id="expList"></div>
     </section>
@@ -297,6 +311,7 @@
       <div class="field"><label id="cEmojiLbl">Icon</label><button type="button" class="iconbtn" id="cEmojiBtn">🛒</button></div>
       <div class="field"><label id="cPlanLbl">Planned (₪)</label><input type="number" inputmode="numeric" id="cPlan" placeholder="0" /></div>
     </div>
+    <div class="field"><label id="cStepLbl">Unit price (₪) — for +/− button (optional)</label><input type="number" inputmode="numeric" id="cStep" placeholder="0" /></div>
     <div class="field"><label id="cNameHeLbl">Name (Hebrew)</label><input id="cNameHe" placeholder="" /></div>
     <div class="field"><label id="cNameEnLbl">Name (English)</label><input id="cNameEn" placeholder="" /></div>
     <div class="field"><label id="cTypeLbl">Type</label>
@@ -350,10 +365,11 @@ const I18N = {
       onTrack:["עידוד ביעד","עדכון מעודד כשאתה בדרך לחסוך"]
     },
     roadmap:"בקרוב (אנדרואיד)", reset:"איפוס כל הנתונים",
-    nDash:"לוח", nTrack:"מעקב", nPlan:"תכנון", nMore:"עוד",
+    nDash:"לוח", nTrack:"הוספת הוצאה", nPlan:"תכנון", nMore:"עוד",
+    steppers:"לחיצה מהירה",
     addExpense:"הוספת הוצאה", amt:"סכום (₪)", note:"הערה (רשות)",
     cancel:"ביטול", save:"שמירה", category:"קטגוריה", delete:"מחיקה",
-    icon:"אייקון", plan:"מתוכנן (₪)", nameHe:"שם (עברית)", nameEn:"שם (אנגלית)",
+    icon:"אייקון", plan:"מתוכנן (₪)", unitPrice:"מחיר יחידה (₪) — לכפתור +/− (רשות)", nameHe:"שם (עברית)", nameEn:"שם (אנגלית)",
     type:"סוג", fixed:"קבועה", variable:"משתנה",
     of:"מתוך", left:"נשאר", over:"חריגה", empty:"אין הוצאות עדיין",
     emptyHint:"הקש על קטגוריה למעלה כדי להוסיף", chooseIcon:"בחר אייקון",
@@ -396,10 +412,11 @@ const I18N = {
       onTrack:["On-track cheer","An encouraging note when you're set to save"]
     },
     roadmap:"Coming next (Android)", reset:"Reset all data",
-    nDash:"Dashboard", nTrack:"Track", nPlan:"Plan", nMore:"More",
+    nDash:"Dashboard", nTrack:"Add expense", nPlan:"Plan", nMore:"More",
+    steppers:"Tap to add",
     addExpense:"Add expense", amt:"Amount (₪)", note:"Note (optional)",
     cancel:"Cancel", save:"Save", category:"Category", delete:"Delete",
-    icon:"Icon", plan:"Planned (₪)", nameHe:"Name (Hebrew)", nameEn:"Name (English)",
+    icon:"Icon", plan:"Planned (₪)", unitPrice:"Unit price (₪) — for +/− button (optional)", nameHe:"Name (Hebrew)", nameEn:"Name (English)",
     type:"Type", fixed:"Fixed", variable:"Variable",
     of:"of", left:"left", over:"over", empty:"No expenses yet",
     emptyHint:"Tap a category above to add one", chooseIcon:"Choose icon",
@@ -427,7 +444,7 @@ const SEED_CATS = [
   {id:"house",   he:"קניות הבית",   en:"House shopping",emoji:"🛒",type:"variable", plan:800},
   {id:"living",  he:"מחייה",        en:"Living / fun", emoji:"☕", type:"variable", plan:600},
   {id:"fuel",    he:"דלק",          en:"Fuel",         emoji:"⛽", type:"variable", plan:500},
-  {id:"pilates", he:"פילאטיס",      en:"Pilates",      emoji:"🧘", type:"variable", plan:50},
+  {id:"pilates", he:"פילאטיס",      en:"Pilates",      emoji:"🧘", type:"variable", plan:50, step:25},
   {id:"misc",    he:"חריגות",       en:"Misc / extra", emoji:"✨", type:"variable", plan:400},
   {id:"haircut", he:"תספורת",       en:"Haircut",      emoji:"💈", type:"variable", plan:110},
 ];
@@ -440,6 +457,7 @@ const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 �
 /* ============ State ============ */
 let state = load();
 ensureNotif();
+ensureSteps();
 let lang = state.lang || "he";
 let curKey = state.curMonth || monthKey(new Date());
 let curView = "dash";
@@ -470,6 +488,14 @@ function ensureNotif(){
   // fill any missing keys after upgrades
   const d=defaultNotif(state.notif.threshold&&state.notif.threshold.pct);
   for(const k in d){ if(!state.notif[k]) state.notif[k]=d[k]; }
+}
+function ensureSteps(){
+  // Give existing Pilates a ₪25 unit price for the +/- button (one-time upgrade)
+  let changed=false;
+  Object.values(state.months||{}).forEach(m=>{
+    (m.cats||[]).forEach(c=>{ if(c.id==="pilates" && c.step===undefined){ c.step=25; changed=true; } });
+  });
+  if(changed) save();
 }
 function save(){ state.lang=lang; state.curMonth=curKey; localStorage.setItem("moneytoring",JSON.stringify(state)); }
 function M(){
@@ -514,12 +540,12 @@ function applyLang(){
   document.getElementById("langBtn").textContent=t("langBtn");
   const map={ heroTitle:"heroTitle", sIncomeL:"sIncome", sFixedL:"sFixed", sSaveL:"sSave",
     tVarSec:"varSec", tFixSec:"fixSec", tFixNote:"fixNote", tQuick:"quick", tAddOther:"addOther",
-    tRecent:"recent", tIncomeSec:"incomeSec", tIncomeLbl:"incomeLbl", tVarPlanSec:"varPlanSec",
+    tRecent:"recent", tSteppers:"steppers", tIncomeSec:"incomeSec", tIncomeLbl:"incomeLbl", tVarPlanSec:"varPlanSec",
     tFixPlanSec:"fixPlanSec", tSavings:"savings", tExport:"export", tImport:"import",
     tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tEnableNotif:"enableNotif", tTestNotif:"testNotif", tRoadmap:"roadmap",
     tReset:"reset", nDash:"nDash", nTrack:"nTrack", nPlan:"nPlan", nMore:"nMore",
     modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mCancel:"cancel", mSave:"save",
-    cEmojiLbl:"icon", cPlanLbl:"plan", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
+    cEmojiLbl:"icon", cPlanLbl:"plan", cStepLbl:"unitPrice", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
     cDelete:"delete", cCancel:"cancel", cSave:"save", emojiTitle:"chooseIcon" };
   for(const [id,key] of Object.entries(map)){ const el=document.getElementById(id); if(el) el.textContent=t(key); }
   document.querySelectorAll(".tAddCat").forEach(e=>e.textContent=t("addCat"));
@@ -603,6 +629,29 @@ function renderLanes(){
       <div class="lv num">${fmt(sp)} / ${fmt(plan)}</div>
       <div class="lbar"><span style="width:${Math.min(100,r*100)}%;background:${barColor(r)}"></span></div>`;
     el.onclick=()=>openExpenseModal(id); box.appendChild(el);
+  });
+}
+function renderSteppers(){
+  const wrap=document.getElementById("steppersWrap"), box=document.getElementById("steppers");
+  const cats=M().cats.filter(c=>+c.step>0);
+  if(!cats.length){ wrap.classList.add("hide"); box.innerHTML=""; return; }
+  wrap.classList.remove("hide"); box.innerHTML="";
+  cats.forEach(c=>{
+    const step=+c.step, sp=spentByCat(c.id), plan=+c.plan||0;
+    const count=M().expenses.filter(e=>e.cat===c.id && Math.abs(e.amt-step)<0.001).length;
+    const row=document.createElement("div"); row.className="stepper";
+    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div>
+      <div class="name">${catName(c)}<small>${fmt(sp)} / ${fmt(plan)}${count?` · ${count}×`:""}</small></div>
+      <div class="btns"><button class="stepbtn minus" aria-label="minus">−</button><button class="stepbtn plus">+${fmt(step)}</button></div>`;
+    row.querySelector(".plus").onclick=()=>{
+      M().expenses.push({ id:Date.now()+"-"+Math.random().toString(36).slice(2,6), cat:c.id, amt:step, note:"", ts:Date.now() });
+      save(); maybeNotify(c.id, step); renderAll();
+    };
+    row.querySelector(".minus").onclick=()=>{
+      const list=M().expenses.filter(e=>e.cat===c.id).sort((a,b)=>b.ts-a.ts);
+      if(list.length){ const rm=list[0].id; M().expenses=M().expenses.filter(e=>e.id!==rm); save(); renderAll(); }
+    };
+    box.appendChild(row);
   });
 }
 function renderExpenses(){
@@ -715,7 +764,7 @@ function renderNav(){
 }
 function renderAll(){
   applyLang(); renderMonthLabel(); renderHero(); renderStats(); renderAlerts();
-  renderVarCards(); renderFixCards(); renderLanes(); renderExpenses(); renderPlan();
+  renderVarCards(); renderFixCards(); renderLanes(); renderSteppers(); renderExpenses(); renderPlan();
   renderNotifSettings(); renderNav();
 }
 
@@ -755,6 +804,7 @@ function openCatModal(id, type){
   document.getElementById("catModalTitle").textContent = id ? catName(c) : t("newCat");
   document.getElementById("cEmojiBtn").textContent=pickedEmoji;
   document.getElementById("cPlan").value=c.plan||"";
+  document.getElementById("cStep").value=c.step||"";
   document.getElementById("cNameHe").value=c.he||"";
   document.getElementById("cNameEn").value=c.en||"";
   document.getElementById("cType").value=c.type||"variable";
@@ -769,6 +819,7 @@ document.getElementById("cSave").onclick=()=>{
   const he=document.getElementById("cNameHe").value.trim(), en=document.getElementById("cNameEn").value.trim();
   if(!he&&!en){ document.getElementById("cNameHe").focus(); return; }
   const data={ emoji:pickedEmoji||"💸", plan:parseFloat(document.getElementById("cPlan").value)||0,
+    step:parseFloat(document.getElementById("cStep").value)||0,
     he:he||en, en:en||he, type:document.getElementById("cType").value };
   if(editCatId) Object.assign(catById(editCatId),data);
   else { data.id="c"+Date.now(); M().cats.push(data); }
@@ -845,7 +896,7 @@ function maybeNotify(catId, amt){
 document.getElementById("notifBtn").onclick=async()=>{
   if(!("Notification" in window)){ alert("No notifications in this browser"); return; }
   const p=await Notification.requestPermission();
-  if(p==="granted") showNotif("MoneyToring", t("notifOn")); else alert(t("notifDenied"));
+  if(p!=="granted") alert(t("notifDenied"));
   renderNotifSettings();
 };
 document.getElementById("notifTestBtn").onclick=async()=>{
