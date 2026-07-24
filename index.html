@@ -456,11 +456,15 @@ const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 �
 
 /* ============ State ============ */
 let state = load();
-ensureNotif();
-ensureSteps();
+// Declare these BEFORE running migrations — the migrations may call save(),
+// and save() reads `lang` and `curKey`. (Bug fix: previously they were declared
+// after ensureSteps(), so upgrading old data that triggered a save threw a
+// "Cannot access 'curKey' before initialization" error and broke the whole app.)
 let lang = state.lang || "he";
 let curKey = state.curMonth || monthKey(new Date());
 let curView = "dash";
+ensureNotif();
+ensureSteps();
 
 function monthKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function keyToDate(k){ const [y,m]=k.split("-").map(Number); return new Date(y,m-1,1); }
