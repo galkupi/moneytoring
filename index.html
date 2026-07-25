@@ -286,7 +286,7 @@
       <div class="section-title"><span id="tRoadmap">Coming next (Android)</span></div>
       <div class="card pad" style="font-size:13.5px;color:var(--muted);line-height:1.7" id="roadmapBox"></div>
       <button class="btn danger" id="resetBtn">🗑 <span id="tReset">Reset all data</span></button>
-      <div style="text-align:center;color:var(--faint);font-size:11.5px;margin-top:16px">MoneyToring · demo v0.2</div>
+      <div id="verFooter" style="text-align:center;color:var(--faint);font-size:11.5px;margin-top:16px">MoneyToring</div>
     </section>
   </main>
 
@@ -468,6 +468,7 @@ const SEED_CATS = [
 ];
 const SEED_INCOME = 11000;
 const QUICK_LANE_IDS = ["house","living"];
+const APP_VERSION = "0.9";
 
 /* ============ Emoji library ============ */
 const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 ☕ 🍺 🍷 🍽️ 🚗 ⛽ 🚕 🅿️ 🚌 ✈️ 🏥 💊 🧠 🦷 🧘 🏋️ ⚽ 🎾 💈 💇 💅 👕 👖 👗 👟 👞 🧥 🎁 🎂 🎉 🎬 🎮 🎧 🎵 📚 ✏️ 🖥️ 💻 📱 🔌 💡 🐶 🐱 🎓 👶 🧸 💰 💳 🏦 📈 🧾 🔧 🛠️ 🧹 🪑 🛋️ 🔑 🌳 💐 ☂️ ❤️ ⭐ ✨ 🔔 🍼 🚿 🧴 📶".split(" ");
@@ -834,6 +835,7 @@ function renderAll(){
   applyLang(); renderMonthLabel(); renderHero(); renderStats(); renderAlerts();
   renderVarCards(); renderFixCards(); renderLanes(); renderSteppers(); renderExpenses(); renderPlan();
   renderNotifSettings(); renderNav();
+  const vf=document.getElementById("verFooter"); if(vf) vf.textContent="MoneyToring · v"+APP_VERSION;
 }
 
 /* ============ Expense modal (add + edit; variable only) ============ */
