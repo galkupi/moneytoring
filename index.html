@@ -464,7 +464,7 @@ const SEED_CATS = [
   {id:"fuel",    he:"דלק",          en:"Fuel",         emoji:"⛽", type:"variable", plan:500},
   {id:"pilates", he:"פילאטיס",      en:"Pilates",      emoji:"🧘", type:"variable", plan:50, step:25},
   {id:"misc",    he:"חריגות",       en:"Misc / extra", emoji:"✨", type:"variable", plan:400},
-  {id:"haircut", he:"תספורת",       en:"Haircut",      emoji:"💈", type:"variable", plan:110},
+  {id:"haircut", he:"תספורת",       en:"Haircut",      emoji:"💈", type:"variable", plan:110, step:130},
 ];
 const SEED_INCOME = 11000;
 const QUICK_LANE_IDS = ["house","living"];
@@ -515,10 +515,11 @@ function ensureNotif(){
   save();
 }
 function ensureSteps(){
-  // Give existing Pilates a ₪25 unit price for the +/- button (one-time upgrade)
+  // Give existing per-unit categories their +/- unit price (one-time upgrade)
+  const DEF={ pilates:25, haircut:130 };
   let changed=false;
   Object.values(state.months||{}).forEach(m=>{
-    (m.cats||[]).forEach(c=>{ if(c.id==="pilates" && c.step===undefined){ c.step=25; changed=true; } });
+    (m.cats||[]).forEach(c=>{ if(DEF[c.id]!==undefined && c.step===undefined){ c.step=DEF[c.id]; changed=true; } });
   });
   if(changed) save();
 }
