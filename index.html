@@ -307,6 +307,7 @@
     <div class="field"><label id="mAmtLbl">Amount (₪)</label><input type="number" inputmode="decimal" id="mAmt" placeholder="0" /></div>
     <div class="field"><label id="mNoteLbl">Note (optional)</label><input type="text" id="mNote" placeholder="" /></div>
     <div class="mrow">
+      <button class="btn danger" id="mDelete" style="flex:1;display:none">Delete</button>
       <button class="btn ghost" id="mCancel" style="flex:1">Cancel</button>
       <button class="btn" id="mSave" style="flex:2">Save</button>
     </div>
@@ -380,7 +381,8 @@ const I18N = {
     roadmap:"בקרוב (אנדרואיד)", reset:"איפוס כל הנתונים",
     nDash:"לוח", nTrack:"הוספת הוצאה", nPlan:"תכנון", nMore:"עוד",
     steppers:"לחיצה מהירה",
-    addExpense:"הוספת הוצאה", amt:"סכום (₪)", note:"הערה (רשות)",
+    addExpense:"הוספת הוצאה", editExpense:"עריכת הוצאה", amt:"סכום (₪)", note:"הערה (רשות)",
+    full:"מלא", incl:"כולל", movedShort:"→ חריגות",
     cancel:"ביטול", save:"שמירה", category:"קטגוריה", delete:"מחיקה",
     icon:"אייקון", plan:"מתוכנן (₪)", unitPrice:"מחיר יחידה (₪) — לכפתור +/− (רשות)", nameHe:"שם (עברית)", nameEn:"שם (אנגלית)",
     type:"סוג", fixed:"קבועה", variable:"משתנה",
@@ -429,7 +431,8 @@ const I18N = {
     roadmap:"Coming next (Android)", reset:"Reset all data",
     nDash:"Dashboard", nTrack:"Add expense", nPlan:"Plan", nMore:"More",
     steppers:"Tap to add",
-    addExpense:"Add expense", amt:"Amount (₪)", note:"Note (optional)",
+    addExpense:"Add expense", editExpense:"Edit expense", amt:"Amount (₪)", note:"Note (optional)",
+    full:"full", incl:"incl.", movedShort:"→ Misc",
     cancel:"Cancel", save:"Save", category:"Category", delete:"Delete",
     icon:"Icon", plan:"Planned (₪)", unitPrice:"Unit price (₪) — for +/− button (optional)", nameHe:"Name (Hebrew)", nameEn:"Name (English)",
     type:"Type", fixed:"Fixed", variable:"Variable",
@@ -535,6 +538,23 @@ const fmt = n => "₪"+Math.round(n).toLocaleString("en-US");
 const varCats = () => M().cats.filter(c=>c.type==="variable");
 const fixCats = () => M().cats.filter(c=>c.type==="fixed");
 function spentByCat(id){ return M().expenses.filter(e=>e.cat===id).reduce((s,e)=>s+e.amt,0); }
+/* ---- Budget spillover: overspend in any variable category rolls into "Misc" (חריגות) ---- */
+const OVERFLOW_ID = "misc";
+function hasOverflowTarget(){ const c=catById(OVERFLOW_ID); return !!c && c.type==="variable"; }
+function catOverflow(id){
+  if(!hasOverflowTarget() || id===OVERFLOW_ID) return 0;
+  const c=catById(id); if(!c || c.type!=="variable") return 0;
+  return Math.max(0, spentByCat(id)-(+c.plan||0));
+}
+function overflowInto(){ return hasOverflowTarget() ? varCats().reduce((s,c)=>s+catOverflow(c.id),0) : 0; }
+// Spent value to DISPLAY: variable categories capped at their plan; the excess is shown under Misc.
+function dispSpent(id){
+  if(!hasOverflowTarget()) return spentByCat(id);
+  if(id===OVERFLOW_ID) return spentByCat(id)+overflowInto();
+  const c=catById(id);
+  if(c && c.type==="variable") return Math.min(spentByCat(id), +c.plan||0);
+  return spentByCat(id);
+}
 function varPlanned(){ return varCats().reduce((s,c)=>s+(+c.plan||0),0); }
 function varSpent(){ return M().expenses.reduce((s,e)=>s+e.amt,0); }
 function fixTotal(){ return fixCats().reduce((s,c)=>s+(+c.plan||0),0); }
@@ -566,7 +586,7 @@ function applyLang(){
     tFixPlanSec:"fixPlanSec", tSavings:"savings", tExport:"export", tImport:"import",
     tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tMasterTitle:"masterTitle", tMasterDesc:"masterDesc", tTestNotif:"testNotif", tRoadmap:"roadmap",
     tReset:"reset", nDash:"nDash", nTrack:"nTrack", nPlan:"nPlan", nMore:"nMore",
-    modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mCancel:"cancel", mSave:"save",
+    modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mDelete:"delete", mCancel:"cancel", mSave:"save",
     cEmojiLbl:"icon", cPlanLbl:"plan", cStepLbl:"unitPrice", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
     cDelete:"delete", cCancel:"cancel", cSave:"save", emojiTitle:"chooseIcon" };
   for(const [id,key] of Object.entries(map)){ const el=document.getElementById(id); if(el) el.textContent=t(key); }
@@ -597,11 +617,17 @@ function renderStats(){
 }
 function renderAlerts(){
   const wrap=document.getElementById("alertsWrap"); wrap.innerHTML="";
-  const n=state.notif, th=TH(); const items=[];
+  const n=state.notif, th=TH(); const items=[]; const target=catById(OVERFLOW_ID);
   varCats().forEach(c=>{
     const plan=+c.plan||0; if(plan<=0) return;
-    const r=spentByCat(c.id)/plan;
-    if(n.over.on && r>1) items.push({cls:"over",ico:"🚨",txt:`<b>${catName(c)}</b> — ${t("alertOver")} ${fmt(spentByCat(c.id)-plan)}`});
+    const ovf=catOverflow(c.id);
+    if(ovf>0){
+      if(n.over.on||n.threshold.on)
+        items.push({cls:"over",ico:"🔴",txt:`<b>${catName(c)}</b> ${t("full")} — ${fmt(ovf)} ${target?"→ "+catName(target):t("movedShort")}`});
+      return;
+    }
+    const sp=dispSpent(c.id), r=sp/plan;
+    if(n.over.on && r>1) items.push({cls:"over",ico:"🚨",txt:`<b>${catName(c)}</b> — ${t("alertOver")} ${fmt(sp-plan)}`});
     else if(n.threshold.on && r>=th) items.push({cls:"warn",ico:"⚠️",txt:`<b>${catName(c)}</b> — ${t("alertNear")} ${Math.round(r*100)}% ${t("usedOf")}`});
   });
   const pace=paceInfo();
@@ -619,16 +645,26 @@ function renderAlerts(){
 }
 function renderVarCards(){
   const box=document.getElementById("varCards"); box.innerHTML="";
-  [...varCats()].sort((a,b)=>spentByCat(b.id)-spentByCat(a.id)).forEach(c=>{
-    const plan=+c.plan||0, sp=spentByCat(c.id);
-    const r = plan>0 ? sp/plan : (sp>0?1.5:0), remain=plan-sp;
+  const target=catById(OVERFLOW_ID);
+  [...varCats()].sort((a,b)=>dispSpent(b.id)-dispSpent(a.id)).forEach(c=>{
+    const plan=+c.plan||0, sp=dispSpent(c.id);
+    const ovf=catOverflow(c.id), isTarget=(c.id===OVERFLOW_ID), fromOvf=isTarget?overflowInto():0;
+    const remain=plan-sp;
+    let r = plan>0 ? sp/plan : (sp>0?1.5:0), color=barColor(r), sub;
+    if(ovf>0){                                   // maxed out — the excess moved to Misc
+      color="var(--over)"; r=1;
+      sub=`${t("full")} · ${fmt(ovf)} ${target?"→ "+catName(target):t("movedShort")}`;
+    } else {
+      sub = remain>=0?fmt(remain)+" "+t("left"):fmt(-remain)+" "+t("over");
+      if(isTarget && fromOvf>0) sub += ` · ${t("incl")} ${fmt(fromOvf)}`;
+    }
     const row=document.createElement("div"); row.className="catrow";
     row.innerHTML=`<div class="top">
         <div class="emoji">${c.emoji||"💸"}</div>
-        <div class="name">${catName(c)}<small>${remain>=0?fmt(remain)+" "+t("left"):fmt(-remain)+" "+t("over")}</small></div>
+        <div class="name">${catName(c)}<small>${sub}</small></div>
         <div class="amt"><b>${fmt(sp)}</b><small>${t("of")} ${fmt(plan)}</small></div>
       </div>
-      <div class="pbar"><span style="width:${Math.min(100,r*100)}%;background:${barColor(r)}"></span></div>`;
+      <div class="pbar"><span style="width:${Math.min(100,r*100)}%;background:${color}"></span></div>`;
     box.appendChild(row);
   });
 }
@@ -645,11 +681,13 @@ function renderLanes(){
   const box=document.getElementById("lanes"); box.innerHTML="";
   QUICK_LANE_IDS.forEach(id=>{
     const c=catById(id); if(!c) return;
-    const sp=spentByCat(id), plan=+c.plan||0, r=plan>0?sp/plan:0;
+    const sp=dispSpent(id), plan=+c.plan||0, ovf=catOverflow(id);
+    let r=plan>0?sp/plan:0, color=barColor(r);
+    if(ovf>0){ r=1; color="var(--over)"; }
     const el=document.createElement("div"); el.className="lane";
     el.innerHTML=`<div class="li">${c.emoji}</div><div class="ln">${catName(c)}</div>
       <div class="lv num">${fmt(sp)} / ${fmt(plan)}</div>
-      <div class="lbar"><span style="width:${Math.min(100,r*100)}%;background:${barColor(r)}"></span></div>`;
+      <div class="lbar"><span style="width:${Math.min(100,r*100)}%;background:${color}"></span></div>`;
     el.onclick=()=>openExpenseModal(id); box.appendChild(el);
   });
 }
@@ -659,7 +697,7 @@ function renderSteppers(){
   if(!cats.length){ wrap.classList.add("hide"); box.innerHTML=""; return; }
   wrap.classList.remove("hide"); box.innerHTML="";
   cats.forEach(c=>{
-    const step=+c.step, sp=spentByCat(c.id), plan=+c.plan||0;
+    const step=+c.step, sp=dispSpent(c.id), plan=+c.plan||0;
     const count=M().expenses.filter(e=>e.cat===c.id && Math.abs(e.amt-step)<0.001).length;
     const row=document.createElement("div"); row.className="stepper";
     row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div>
@@ -687,8 +725,9 @@ function renderExpenses(){
     const row=document.createElement("div"); row.className="exp";
     row.innerHTML=`<div class="emoji">${c?c.emoji:"💸"}</div>
       <div class="meta"><b>${c?catName(c):"?"}</b><small class="rtl-flip">${e.note?e.note+" · ":""}${dstr}</small></div>
-      <div class="val num">${fmt(e.amt)}</div><button class="del">✕</button>`;
-    row.querySelector(".del").onclick=()=>{ M().expenses=M().expenses.filter(x=>x.id!==e.id); save(); renderAll(); };
+      <div class="val num">${fmt(e.amt)}</div><span style="color:var(--faint);font-size:14px">✎</span>`;
+    row.style.cursor="pointer";
+    row.onclick=()=>openEditExpense(e.id);
     box.appendChild(row);
   });
 }
@@ -796,21 +835,35 @@ function renderAll(){
   renderNotifSettings(); renderNav();
 }
 
-/* ============ Expense modal (variable only) ============ */
-let modalCat=null;
-function openExpenseModal(catId){
-  const vs=varCats(); if(!vs.length) return;
-  modalCat=catId||vs[0].id;
+/* ============ Expense modal (add + edit; variable only) ============ */
+let modalCat=null, editingExpenseId=null;
+function buildChips(sel){
   const chips=document.getElementById("catChips"); chips.innerHTML="";
-  vs.forEach(c=>{
-    const el=document.createElement("div"); el.className="chip"+(c.id===modalCat?" sel":"");
+  varCats().forEach(c=>{
+    const el=document.createElement("div"); el.className="chip"+(c.id===sel?" sel":"");
     el.innerHTML=`<span>${c.emoji}</span><span>${catName(c)}</span>`;
     el.onclick=()=>{ modalCat=c.id; document.querySelectorAll("#catChips .chip").forEach(x=>x.classList.remove("sel")); el.classList.add("sel"); };
     chips.appendChild(el);
   });
+}
+function openExpenseModal(catId){
+  const vs=varCats(); if(!vs.length) return;
+  editingExpenseId=null; modalCat=catId||vs[0].id;
+  document.getElementById("modalTitle").textContent=t("addExpense");
+  document.getElementById("mDelete").style.display="none";
+  buildChips(modalCat);
   document.getElementById("mAmt").value=""; document.getElementById("mNote").value="";
   document.getElementById("modalBg").classList.add("show");
   setTimeout(()=>document.getElementById("mAmt").focus(),150);
+}
+function openEditExpense(id){
+  const e=M().expenses.find(x=>x.id===id); if(!e) return;
+  editingExpenseId=id; modalCat=e.cat;
+  document.getElementById("modalTitle").textContent=t("editExpense");
+  document.getElementById("mDelete").style.display="";
+  buildChips(modalCat);
+  document.getElementById("mAmt").value=e.amt; document.getElementById("mNote").value=e.note||"";
+  document.getElementById("modalBg").classList.add("show");
 }
 const closeExpenseModal=()=>document.getElementById("modalBg").classList.remove("show");
 document.getElementById("mCancel").onclick=closeExpenseModal;
@@ -819,8 +872,18 @@ document.getElementById("mSave").onclick=()=>{
   const amt=parseFloat(document.getElementById("mAmt").value);
   if(!amt||amt<=0){ document.getElementById("mAmt").focus(); return; }
   const note=document.getElementById("mNote").value.trim();
-  M().expenses.push({ id:Date.now()+"-"+Math.random().toString(36).slice(2,6), cat:modalCat, amt, note, ts:Date.now() });
+  if(editingExpenseId){
+    const e=M().expenses.find(x=>x.id===editingExpenseId);
+    if(e){ e.cat=modalCat; e.amt=amt; e.note=note; }
+  } else {
+    M().expenses.push({ id:Date.now()+"-"+Math.random().toString(36).slice(2,6), cat:modalCat, amt, note, ts:Date.now() });
+  }
   save(); closeExpenseModal(); maybeNotify(modalCat, amt); renderAll();
+};
+document.getElementById("mDelete").onclick=()=>{
+  if(!editingExpenseId) return;
+  M().expenses=M().expenses.filter(x=>x.id!==editingExpenseId);
+  save(); closeExpenseModal(); renderAll();
 };
 
 /* ============ Category modal ============ */
@@ -908,11 +971,15 @@ function fireNotifs(msgs){
 function maybeNotify(catId, amt){
   const n=state.notif, c=catById(catId); if(!c) return;
   const msgs=[];
-  const plan=+c.plan||0;
+  const plan=+c.plan||0, target=catById(OVERFLOW_ID), ovf=catOverflow(catId);
   if(plan>0){
-    const r=spentByCat(catId)/plan;
-    if(n.over.on && r>1) msgs.push(`🚨 ${catName(c)} — ${t("alertOver")} ${fmt(spentByCat(catId)-plan)}`);
-    else if(n.threshold.on && r>=TH()) msgs.push(`⚠️ ${catName(c)} — ${Math.round(r*100)}% ${t("usedOf")}`);
+    if(ovf>0){
+      if(n.over.on||n.threshold.on) msgs.push(`🔴 ${catName(c)} ${t("full")} — ${fmt(ovf)} ${target?"→ "+catName(target):t("movedShort")}`);
+    } else {
+      const r=dispSpent(catId)/plan;
+      if(n.over.on && r>1) msgs.push(`🚨 ${catName(c)} — ${t("alertOver")} ${fmt(dispSpent(catId)-plan)}`);
+      else if(n.threshold.on && r>=TH()) msgs.push(`⚠️ ${catName(c)} — ${Math.round(r*100)}% ${t("usedOf")}`);
+    }
   }
   if(n.large.on && amt>0 && amt>=(+n.large.amount||0)) msgs.push(`💥 ${t("largeAlertL")}: ${fmt(amt)} · ${catName(c)}`);
   const pace=paceInfo();
@@ -964,9 +1031,25 @@ document.getElementById("importFile").onchange=e=>{ const f=e.target.files[0]; i
 
 renderAll();
 
-/* Register service worker for offline use (activates over HTTPS or localhost) */
+/* Register service worker for offline use + auto-update.
+   updateViaCache:"none" makes the browser bypass its HTTP cache when checking
+   sw.js (GitHub Pages serves it with max-age=600, which otherwise delays updates).
+   When a new version is ready, reload automatically so the user always gets the latest. */
 if("serviceWorker" in navigator){
-  window.addEventListener("load",()=>{ navigator.serviceWorker.register("./sw.js").catch(()=>{}); });
+  window.addEventListener("load", async ()=>{
+    try{
+      const reg=await navigator.serviceWorker.register("./sw.js",{updateViaCache:"none"});
+      reg.update();
+      reg.addEventListener("updatefound",()=>{
+        const nw=reg.installing; if(!nw) return;
+        nw.addEventListener("statechange",()=>{
+          if(nw.state==="installed" && navigator.serviceWorker.controller){ location.reload(); }
+        });
+      });
+      // re-check for updates each time the app is brought to the foreground
+      document.addEventListener("visibilitychange",()=>{ if(!document.hidden) reg.update(); });
+    }catch(e){}
+  });
 }
 </script>
 </body>
