@@ -469,7 +469,7 @@ const SEED_CATS = [
 ];
 const SEED_INCOME = 11000;
 const QUICK_LANE_IDS = ["house","living"];
-const APP_VERSION = "1.0";
+const APP_VERSION = "1.1";
 
 /* ============ Emoji library ============ */
 const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 ☕ 🍺 🍷 🍽️ 🚗 ⛽ 🚕 🅿️ 🚌 ✈️ 🏥 💊 🧠 🦷 🧘 🏋️ ⚽ 🎾 💈 💇 💅 👕 👖 👗 👟 👞 🧥 🎁 🎂 🎉 🎬 🎮 🎧 🎵 📚 ✏️ 🖥️ 💻 📱 🔌 💡 🐶 🐱 🎓 👶 🧸 💰 💳 🏦 📈 🧾 🔧 🛠️ 🧹 🪑 🛋️ 🔑 🌳 💐 ☂️ ❤️ ⭐ ✨ 🔔 🍼 🚿 🧴 📶".split(" ");
@@ -485,6 +485,7 @@ let curKey = monthKey(new Date());   // always open on the current month (plan c
 let curView = "dash";
 ensureNotif();
 ensureSteps();
+ensureExpenseMonths();
 
 function monthKey(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function keyToDate(k){ const [y,m]=k.split("-").map(Number); return new Date(y,m-1,1); }
@@ -524,6 +525,26 @@ function ensureSteps(){
     (m.cats||[]).forEach(c=>{ if(DEF[c.id]!==undefined && c.step===undefined){ c.step=DEF[c.id]; changed=true; } });
   });
   if(changed) save();
+}
+function ensureExpenseMonths(){
+  // Move each expense into the month that matches its own timestamp — fixes
+  // expenses that were saved under the wrong month (when the app "remembered"
+  // a month you had navigated to). The plan of each month is untouched.
+  const moves=[];
+  Object.entries(state.months||{}).forEach(([mkey,m])=>{
+    (m.expenses||[]).forEach(e=>{
+      if(!e || !e.ts) return;
+      let to; try{ to=monthKey(new Date(e.ts)); }catch(_){ return; }
+      if(to && to!==mkey) moves.push({e, from:mkey, to, fromMonth:m});
+    });
+  });
+  if(!moves.length) return;
+  moves.forEach(({e,from,to,fromMonth})=>{
+    if(!state.months[to]) state.months[to]={ income:fromMonth.income, cats:JSON.parse(JSON.stringify(fromMonth.cats)), expenses:[] };
+    state.months[from].expenses = state.months[from].expenses.filter(x=>x!==e);
+    state.months[to].expenses.push(e);
+  });
+  save();
 }
 function save(){ state.lang=lang; state.curMonth=curKey; localStorage.setItem("moneytoring",JSON.stringify(state)); }
 function M(){
