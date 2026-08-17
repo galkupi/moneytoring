@@ -1,0 +1,26 @@
+name: MAX login test
+
+# Manual trigger only (from the Actions tab). No schedule yet — this is just the Step 1 check.
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: scraper
+        run: npm install
+
+      - name: Run MAX login test
+        working-directory: scraper
+        env:
+          MAX_USER: ${{ secrets.MAX_USER }}
+          MAX_PASS: ${{ secrets.MAX_PASS }}
+        run: node scrape.js

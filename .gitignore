@@ -1,3 +1,6 @@
 moneytoring-deploy.zip
 phone-qr.png
+share-qr.png
 .claude/
+scraper/node_modules/
+scraper/package-lock.json

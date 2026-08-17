@@ -1,0 +1,10 @@
+{
+  "name": "moneytoring-scraper",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Daily MAX transaction scraper for MoneyToring",
+  "main": "scrape.js",
+  "dependencies": {
+    "israeli-bank-scrapers": "latest"
+  }
+}
