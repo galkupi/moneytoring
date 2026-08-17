@@ -524,7 +524,7 @@ const SEED_CATS = [
 ];
 const SEED_INCOME = 11000;
 const QUICK_LANE_IDS = ["house","living"];
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.4";
 
 /* ============ Emoji library ============ */
 const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 ☕ 🍺 🍷 🍽️ 🚗 ⛽ 🚕 🅿️ 🚌 ✈️ 🏥 💊 🧠 🦷 🧘 🏋️ ⚽ 🎾 💈 💇 💅 👕 👖 👗 👟 👞 🧥 🎁 🎂 🎉 🎬 🎮 🎧 🎵 📚 ✏️ 🖥️ 💻 📱 🔌 💡 🐶 🐱 🎓 👶 🧸 💰 💳 🏦 📈 🧾 🔧 🛠️ 🧹 🪑 🛋️ 🔑 🌳 💐 ☂️ ❤️ ⭐ ✨ 🔔 🍼 🚿 🧴 📶".split(" ");
@@ -1168,10 +1168,17 @@ if(!state.tourDone){
    ?add or ?amt alone  → opens the add screen, pre-filled. */
 function handleQuickLink(){
   const p=new URLSearchParams(location.search);
-  if(!p.has("add") && !p.has("amt") && !p.has("cat")) return;
+  if(!p.has("add") && !p.has("amt") && !p.has("cat") && !p.has("catname")) return;
   const amt=parseFloat(p.get("amt"));
   const cat=p.get("cat");
-  const validCat = cat && catById(cat) && catById(cat).type==="variable" ? cat : null;
+  let validCat = cat && catById(cat) && catById(cat).type==="variable" ? cat : null;
+  // also accept a category by name (so an iPhone Shortcut can pass "מחייה" directly)
+  const catname=p.get("catname");
+  if(!validCat && catname){
+    const needle=catname.trim().toLowerCase();
+    const found=varCats().find(c=> String(c.he).trim().toLowerCase()===needle || String(c.en).trim().toLowerCase()===needle);
+    if(found) validCat=found.id;
+  }
   if(amt>0 && validCat){
     M().expenses.push({ id:Date.now()+"-"+Math.random().toString(36).slice(2,6), cat:validCat, amt, note:"", ts:Date.now() });
     save(); maybeNotify(validCat, amt); renderAll();
