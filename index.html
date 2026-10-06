@@ -77,6 +77,8 @@
   .fixrow:last-child{border-bottom:none}
   .fixrow .name{flex:1;font-weight:500}
   .fixrow .val{font-weight:700}
+  .fixrow .name small{display:block;color:var(--muted);font-weight:400;font-size:11.5px;margin-top:1px}
+  .fixrow.off .val{color:var(--faint);font-weight:500}
   .tag{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:600;flex:none}
   .tag.fixed{background:#5b8def1a;color:#3f6fd0}
   .tag.var{background:#0e9f6e1a;color:#0b8f6a}
@@ -358,6 +360,10 @@
     <div class="field"><label id="cNameEnLbl">Name (English)</label><input id="cNameEn" placeholder="" /></div>
     <div class="field"><label id="cTypeLbl">Type</label>
       <select id="cType"><option value="fixed">Fixed</option><option value="variable">Variable</option></select></div>
+    <div class="grid2" id="cFreqWrap">
+      <div class="field"><label id="cEveryLbl">Billing frequency</label><select id="cEvery"></select></div>
+      <div class="field" id="cStartField"><label id="cStartLbl">Payment date</label><input type="date" id="cStart" /></div>
+    </div>
     <div class="mrow">
       <button class="btn danger" id="cDelete" style="flex:1">Delete</button>
       <button class="btn ghost" id="cCancel" style="flex:1">Cancel</button>
@@ -429,6 +435,8 @@ const I18N = {
     cancel:"ביטול", save:"שמירה", category:"קטגוריה", delete:"מחיקה",
     icon:"אייקון", plan:"מתוכנן (₪)", unitPrice:"מחיר יחידה (₪) — לכפתור +/− (רשות)", nameHe:"שם (עברית)", nameEn:"שם (אנגלית)",
     type:"סוג", fixed:"קבועה", variable:"משתנה",
+    every:"תדירות תשלום", startDate:"תאריך תשלום", dueNow:"יורד החודש", nextPay:"הבא",
+    freqOpts:{1:"כל חודש",2:"כל חודשיים",3:"כל 3 חודשים",4:"כל 4 חודשים",6:"כל חצי שנה",12:"פעם בשנה"},
     of:"מתוך", left:"נשאר", over:"חריגה", empty:"אין הוצאות עדיין",
     emptyHint:"הקש על קטגוריה למעלה כדי להוסיף", chooseIcon:"בחר אייקון",
     newCat:"קטגוריה חדשה", confirmReset:"למחוק את כל הנתונים? אי אפשר לבטל.",
@@ -492,6 +500,8 @@ const I18N = {
     cancel:"Cancel", save:"Save", category:"Category", delete:"Delete",
     icon:"Icon", plan:"Planned (₪)", unitPrice:"Unit price (₪) — for +/− button (optional)", nameHe:"Name (Hebrew)", nameEn:"Name (English)",
     type:"Type", fixed:"Fixed", variable:"Variable",
+    every:"Billing frequency", startDate:"Payment date", dueNow:"due this month", nextPay:"next",
+    freqOpts:{1:"Monthly",2:"Every 2 months",3:"Every 3 months",4:"Every 4 months",6:"Every 6 months",12:"Yearly"},
     of:"of", left:"left", over:"over", empty:"No expenses yet",
     emptyHint:"Tap a category above to add one", chooseIcon:"Choose icon",
     newCat:"New category", confirmReset:"Delete all data? This cannot be undone.",
@@ -524,7 +534,7 @@ const SEED_CATS = [
 ];
 const SEED_INCOME = 11000;
 const QUICK_LANE_IDS = ["house","living"];
-const APP_VERSION = "1.4";
+const APP_VERSION = "1.5";
 
 /* ============ Emoji library ============ */
 const EMOJIS = "🏠 🏡 🛒 🛍️ 🧺 🍎 🍞 🥦 🥛 🍗 🍕 🍔 ☕ 🍺 🍷 🍽️ 🚗 ⛽ 🚕 🅿️ 🚌 ✈️ 🏥 💊 🧠 🦷 🧘 🏋️ ⚽ 🎾 💈 💇 💅 👕 👖 👗 👟 👞 🧥 🎁 🎂 🎉 🎬 🎮 🎧 🎵 📚 ✏️ 🖥️ 💻 📱 🔌 💡 🐶 🐱 🎓 👶 🧸 💰 💳 🏦 📈 🧾 🔧 🛠️ 🧹 🪑 🛋️ 🔑 🌳 💐 ☂️ ❤️ ⭐ ✨ 🔔 🍼 🚿 🧴 📶".split(" ");
@@ -641,7 +651,33 @@ function dispSpent(id){
 }
 function varPlanned(){ return varCats().reduce((s,c)=>s+(+c.plan||0),0); }
 function varSpent(){ return M().expenses.reduce((s,e)=>s+e.amt,0); }
-function fixTotal(){ return fixCats().reduce((s,c)=>s+(+c.plan||0),0); }
+/* ---- Periodic fixed bills (electricity, water, arnona...): paid every N months from a start date ---- */
+function monthDiff(a,b){ const [ay,am]=a.split("-").map(Number),[by,bm]=b.split("-").map(Number); return (by-ay)*12+(bm-am); }
+function addMonths(key,n){ const d=keyToDate(key); d.setMonth(d.getMonth()+n); return monthKey(d); }
+function catEvery(c){ return Math.max(1, parseInt(c.every)||1); }
+function isPeriodic(c){ return c.type==="fixed" && catEvery(c)>1 && !!c.start; }
+// Is this category's payment due in month `key`? Monthly bills are always due; periodic ones
+// only on the start month and every N months after it (never before the start).
+function catDue(c, key){
+  if(!isPeriodic(c)) return true;
+  const d=monthDiff(c.start.slice(0,7), key||curKey);
+  return d>=0 && d%catEvery(c)===0;
+}
+function nextDueKey(c, key){
+  const d=monthDiff(c.start.slice(0,7), key||curKey);
+  return d<0 ? c.start.slice(0,7) : addMonths(key||curKey, (catEvery(c)-d%catEvery(c))%catEvery(c));
+}
+function catPlan(c){ return catDue(c) ? (+c.plan||0) : 0; }
+function keyLabel(k){ const d=keyToDate(k); return I18N[lang].months[d.getMonth()]+" "+d.getFullYear(); }
+function freqLabel(c){ const ev=catEvery(c); return t("freqOpts")[ev] || ev+"×"; }
+// Subtitle for a periodic bill: "every 2 months · due this month (15/11)" / "· next: December 2026"
+function periodicSub(c){
+  if(!isPeriodic(c)) return "";
+  if(catDue(c)){ const day=+c.start.slice(8,10), m=keyToDate(curKey).getMonth()+1;
+    return `${freqLabel(c)} · ${t("dueNow")}${day?` (${day}/${m})`:""}`; }
+  return `${freqLabel(c)} · ${t("nextPay")}: ${keyLabel(nextDueKey(c))}`;
+}
+function fixTotal(){ return fixCats().reduce((s,c)=>s+catPlan(c),0); }
 function plannedSavings(){ return (M().income||0) - fixTotal() - varPlanned(); }
 function catById(id){ return M().cats.find(c=>c.id===id); }
 function catName(c){ return lang==="he" ? c.he : c.en; }
@@ -671,15 +707,16 @@ function applyLang(){
     tSettings:"settings", tNActiveNow:"nActiveNow", tNOnPhone:"nOnPhone", tMasterTitle:"masterTitle", tMasterDesc:"masterDesc", tRoadmap:"roadmap",
     tReset:"reset", nDash:"nDash", nTrack:"nTrack", nPlan:"nPlan", nMore:"nMore",
     modalTitle:"addExpense", mAmtLbl:"amt", mNoteLbl:"note", mDelete:"delete", mCancel:"cancel", mSave:"save",
-    cEmojiLbl:"icon", cPlanLbl:"plan", cStepLbl:"unitPrice", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type",
+    cEmojiLbl:"icon", cPlanLbl:"plan", cStepLbl:"unitPrice", cNameHeLbl:"nameHe", cNameEnLbl:"nameEn", cTypeLbl:"type", cEveryLbl:"every", cStartLbl:"startDate",
     cDelete:"delete", cCancel:"cancel", cSave:"save", emojiTitle:"chooseIcon" };
   for(const [id,key] of Object.entries(map)){ const el=document.getElementById(id); if(el) el.textContent=t(key); }
   document.querySelectorAll(".tAddCat").forEach(e=>e.textContent=t("addCat"));
   document.querySelector("#cType option[value=fixed]").textContent=t("fixed");
   document.querySelector("#cType option[value=variable]").textContent=t("variable");
+  buildEveryOptions();
   document.getElementById("roadmapBox").innerHTML=I18N[lang].roadmapItems.map(x=>`<div style="margin:6px 0">${x}</div>`).join("");
 }
-function renderMonthLabel(){ const d=keyToDate(curKey); document.getElementById("mLabel").textContent=I18N[lang].months[d.getMonth()]+" "+d.getFullYear(); }
+function renderMonthLabel(){ document.getElementById("mLabel").textContent=keyLabel(curKey); }
 
 function renderHero(){
   const sp=varSpent(), pl=varPlanned();
@@ -755,9 +792,10 @@ function renderVarCards(){
 function renderFixCards(){
   const box=document.getElementById("fixCards"); box.innerHTML="";
   fixCats().forEach(c=>{
-    const row=document.createElement("div"); row.className="fixrow";
-    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div><div class="name">${catName(c)}</div>
-      <div class="val num">${fmt(+c.plan||0)}</div>`;
+    const row=document.createElement("div"); row.className="fixrow"+(catDue(c)?"":" off");
+    const sub=periodicSub(c);
+    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div><div class="name">${catName(c)}${sub?`<small>${sub}</small>`:""}</div>
+      <div class="val num">${fmt(catPlan(c))}</div>`;
     box.appendChild(row);
   });
 }
@@ -818,8 +856,9 @@ function renderExpenses(){
 function renderPlanList(box, cats){
   box.innerHTML="";
   cats.forEach(c=>{
-    const row=document.createElement("div"); row.className="fixrow"; row.style.cursor="pointer";
-    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div><div class="name">${catName(c)}</div>
+    const row=document.createElement("div"); row.className="fixrow"+(catDue(c)?"":" off"); row.style.cursor="pointer";
+    const sub=periodicSub(c);
+    row.innerHTML=`<div class="emoji">${c.emoji||"💸"}</div><div class="name">${catName(c)}${sub?`<small>${sub}</small>`:""}</div>
       <div class="val num">${fmt(+c.plan||0)}</div><span style="color:var(--faint);font-size:15px">✎</span>`;
     row.onclick=()=>openCatModal(c.id); box.appendChild(row);
   });
@@ -984,9 +1023,28 @@ function openCatModal(id, type){
   document.getElementById("cNameHe").value=c.he||"";
   document.getElementById("cNameEn").value=c.en||"";
   document.getElementById("cType").value=c.type||"variable";
+  document.getElementById("cEvery").value=String(catEvery(c));
+  document.getElementById("cStart").value=c.start||"";
+  syncFreqFields();
   document.getElementById("cDelete").style.display=id?"":"none";
   document.getElementById("catModalBg").classList.add("show");
 }
+function buildEveryOptions(){
+  const sel=document.getElementById("cEvery"), cur=sel.value||"1"; sel.innerHTML="";
+  Object.entries(t("freqOpts")).forEach(([v,l])=>{ const o=document.createElement("option"); o.value=v; o.textContent=l; sel.appendChild(o); });
+  sel.value=cur;
+}
+// Frequency applies to fixed bills only; the payment date is needed only when it's not monthly
+function syncFreqFields(){
+  const fixed=document.getElementById("cType").value==="fixed", ev=parseInt(document.getElementById("cEvery").value)||1;
+  document.getElementById("cFreqWrap").classList.toggle("hide",!fixed);
+  document.getElementById("cStartField").classList.toggle("hide",ev<=1);
+  if(fixed && ev>1 && !document.getElementById("cStart").value){
+    const n=new Date(); document.getElementById("cStart").value=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
+  }
+}
+document.getElementById("cType").onchange=syncFreqFields;
+document.getElementById("cEvery").onchange=syncFreqFields;
 const closeCatModal=()=>document.getElementById("catModalBg").classList.remove("show");
 document.getElementById("cCancel").onclick=closeCatModal;
 document.getElementById("catModalBg").onclick=e=>{ if(e.target.id==="catModalBg") closeCatModal(); };
@@ -997,7 +1055,15 @@ document.getElementById("cSave").onclick=()=>{
   const data={ emoji:pickedEmoji||"💸", plan:parseFloat(document.getElementById("cPlan").value)||0,
     step:parseFloat(document.getElementById("cStep").value)||0,
     he:he||en, en:en||he, type:document.getElementById("cType").value };
-  if(editCatId) Object.assign(catById(editCatId),data);
+  const ev=parseInt(document.getElementById("cEvery").value)||1, start=document.getElementById("cStart").value;
+  if(data.type==="fixed" && ev>1 && start){ data.every=ev; data.start=start; } else { data.every=1; data.start=""; }
+  if(editCatId){
+    Object.assign(catById(editCatId),data);
+    // The billing schedule belongs to the bill, not to one month: carry it into months
+    // that were already opened ahead (e.g. by browsing forward), so their projection matches.
+    Object.entries(state.months).forEach(([k,m])=>{ if(k<=curKey) return;
+      const fc=(m.cats||[]).find(x=>x.id===editCatId); if(fc){ fc.every=data.every; fc.start=data.start; } });
+  }
   else { data.id="c"+Date.now(); M().cats.push(data); }
   save(); closeCatModal(); renderAll();
 };
